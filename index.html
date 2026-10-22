@@ -60,6 +60,13 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .qr{border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;min-width:0}
 .qr img,.qr canvas{width:100%;max-width:150px;height:auto;background:#fff;padding:6px;border-radius:8px}
 .qr .t{font-weight:700;font-size:13px;overflow-wrap:anywhere}
+.scanner{position:fixed;inset:0;z-index:50;background:rgba(20,14,10,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));color:#fff;text-align:center}
+.scanner .frame{position:relative;width:min(86vw,420px);aspect-ratio:1;border-radius:20px;overflow:hidden;background:#000}
+.scanner video{width:100%;height:100%;object-fit:cover;display:block}
+.scanner .frame::after{content:"";position:absolute;inset:14%;border:3px solid rgba(255,255,255,.85);border-radius:16px}
+.scanner .msg{color:#f3e9e0}
+.scanner label.file{color:#fff;border:1px solid rgba(255,255,255,.5);border-radius:10px;padding:10px 16px}
 .stamp{position:absolute;left:8%;right:8%;top:6px;aspect-ratio:1;border:3px double var(--stamp);border-radius:50%;color:var(--stamp);display:grid;place-items:center;
   font:900 13px/1.2 var(--display);transform:rotate(-14deg);background:color-mix(in srgb,var(--paper) 85%,transparent);padding:4px;text-align:center}
 .stamp span{display:block;font:500 10px var(--body)}
@@ -126,14 +133,24 @@ label.file input{position:absolute;opacity:0;width:1px;height:1px}
   <p class="note" id="mode-note" hidden></p>
   <section id="view-play" class="wrap"></section>
     <section id="view-admin" class="wrap" hidden></section>
+  <div class="scanner" id="scanner" hidden role="dialog" aria-label="QRコードを読み込む">
+    <h3>お店のQRコードを枠の中に写してください</h3>
+    <div class="frame"><video id="scan-video" playsinline muted></video></div>
+    <p class="msg" id="scan-msg">カメラの使用を許可してください。</p>
+    <div class="row" style="justify-content:center">
+      <label class="file">写真から読み込む<input id="scan-file" type="file" accept="image/*"></label>
+      <button class="btn ghost" id="scan-close" style="color:#fff;border-color:rgba(255,255,255,.5)">閉じる</button>
+    </div>
+  </div>
 </div>
 
 <script src="qrcode.min.js"></script>
+<script src="jsQR.js"></script>
 <script>
 // Standalone build: the page's own address is the QR target
 const ARTIFACT_URL=location.origin+location.pathname;
 const MAX=5;
-const DEFAULT_CFG={title:"珈琲さんぽ 飲み比べラリー",date:"11/16(日) 10:00〜16:00",place:"中央公園 芝生ひろば",approved:[]};
+const DEFAULT_CFG={title:"Coffee Festa まめかけ2026",date:"11/08(日) 10:00〜16:00",place:"東伯総合公園",approved:[]};
 // Example shops shown only while no real vendor has been approved; clearly labelled 見本
 const DEMO=[
   {id:"demo-1",shop:"見本：あさひ焙煎所",bean:"エチオピア イルガチェフェ",roast:"浅煎り",notes:"レモンや紅茶のような明るい酸味",message:"ハンドドリップで1杯ずつ淹れます。",code:"ASAHI",image:null},
@@ -224,6 +241,7 @@ function renderPlay(){
     ${demo?`<p class="note">出店者がまだ台紙に載っていないので、<span class="tag demo">見本</span>の5店で試せます。各店のQRは「主催者」タブに出ています。</p>`:""}
     <div class="meter"><div class="bar"><i style="width:${k/MAX*100}%"></i></div>${k} / ${MAX} 杯</div>
     <p class="msg" id="save-note" style="font-size:12px"></p>
+    <button class="btn wide" id="scan-open">QRコードを読み込む</button>
     <div class="cups">${slots.map((s,i)=>s?`
       <button class="slot ${S.progress.stamps[s.id]?"got":""}" data-open="${s.id}" aria-label="${esc(s.shop)}${S.progress.stamps[s.id]?"（飲んだ）":""}">
         ${S.progress.stamps[s.id]?`<img class="ph logo ${justGot===s.id?"new":""}" src="${logoOf(s)}" alt="${esc(s.shop)}のロゴ">`:`<div class="ph todo">？</div>`}
@@ -496,6 +514,49 @@ function onData(kind){
   if(tab==="play"){renderArrive();renderPlay();if(kind!=="progress")renderSheet()}
   else if(tab==="admin")renderAdminApps();
 }
+
+/* ---------- in-page QR scanner (camera, or a photo as fallback) ---------- */
+let scanStream=null, scanTimer=null;
+const scanCanvas=document.createElement("canvas"), scanCtx=scanCanvas.getContext("2d",{willReadFrequently:true});
+function handleScanned(text){
+  const m=String(text).match(/#q-([A-Za-z0-9]+)(?:-([0-9a-fA-F]+))?/);
+  if(!m){$("#scan-msg").textContent="このQRコードはスタンプ用ではないようです。お店のQRコードを写してください。";return false}
+  closeScanner();
+  pendingCode={code:m[1].toUpperCase(),name:m[2]?unhexName(m[2]).slice(0,30):""};tryArrive();
+  return true;
+}
+function decodeFrom(source,w,h){
+  const k=Math.min(1,800/Math.max(w,h));scanCanvas.width=Math.round(w*k);scanCanvas.height=Math.round(h*k);
+  scanCtx.drawImage(source,0,0,scanCanvas.width,scanCanvas.height);
+  const d=scanCtx.getImageData(0,0,scanCanvas.width,scanCanvas.height);
+  const r=window.jsQR&&jsQR(d.data,d.width,d.height,{inversionAttempts:"dontInvert"});
+  return r&&r.data;
+}
+async function openScanner(){
+  $("#scanner").hidden=false;$("#scan-msg").textContent="カメラの使用を許可してください。";
+  try{
+    scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false});
+    const v=$("#scan-video");v.srcObject=scanStream;await v.play();
+    $("#scan-msg").textContent="読み取り中…";
+    const tick=()=>{
+      if(!scanStream)return;
+      if(v.readyState>=2){const t=decodeFrom(v,v.videoWidth,v.videoHeight);if(t&&handleScanned(t))return}
+      scanTimer=setTimeout(tick,200);
+    };tick();
+  }catch(e){$("#scan-msg").textContent="カメラが使えませんでした。「写真から読み込む」でQRコードを撮影してください。"}
+}
+function closeScanner(){
+  clearTimeout(scanTimer);if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null}
+  $("#scan-video").srcObject=null;$("#scanner").hidden=true;
+}
+$("#scan-close").addEventListener("click",closeScanner);
+$("#scan-file").addEventListener("change",e=>{
+  const f=e.target.files[0];if(!f)return;const img=new Image();
+  img.onload=()=>{const t=decodeFrom(img,img.naturalWidth,img.naturalHeight);URL.revokeObjectURL(img.src);
+    if(!t)$("#scan-msg").textContent="QRコードが見つかりませんでした。QRコードが大きく写るように撮り直してください。";else handleScanned(t)};
+  img.src=URL.createObjectURL(f);e.target.value="";
+});
+document.addEventListener("click",e=>{if(e.target.id==="scan-open")openScanner()});
 
 /* ---------- in-app browser warning (QR apps, LINE, Instagram, Google app...) ---------- */
 if(/Line\/|FBAN|FBAV|Instagram|MicroMessenger|KAKAOTALK|GSA\/|YJApp/i.test(navigator.userAgent))$("#inapp").hidden=false;

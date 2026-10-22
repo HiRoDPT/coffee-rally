@@ -5,4 +5,4 @@
 - 参加者用: https://hirodpt.github.io/coffee-rally/
 - 主催者用（QR発行・店の取り込み）: https://hirodpt.github.io/coffee-rally/#admin
 
-`qrcode.min.js` は [qrcodejs](https://github.com/davidshimjs/qrcodejs)（MIT License, `qrcode-LICENSE.txt`）です。
+`qrcode.min.js` は [qrcodejs](https://github.com/davidshimjs/qrcodejs)（MIT License, `qrcode-LICENSE.txt`）、`jsQR.js` は [jsQR](https://github.com/cozmo/jsQR)（Apache License 2.0, `jsQR-LICENSE.txt`）です。
