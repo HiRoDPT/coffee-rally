@@ -39,9 +39,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .meter{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .bar{flex:1;height:8px;background:var(--soft);border-radius:99px;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--roast);border-radius:99px;transition:width .4s}
-.cups{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
-.cups>*{grid-column:span 2}
-.cups>*:nth-child(4){grid-column:2/span 2}
+.cups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .slot{position:relative;border:2px dashed var(--line);border-radius:18px;background:var(--bg);padding:8px 6px 10px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font:inherit;color:inherit;text-align:center;min-width:0}
 .slot.empty{cursor:default;opacity:.7}
 .ph{width:100%;aspect-ratio:1;max-width:100%;border-radius:50%;object-fit:cover;background:var(--soft);display:grid;place-items:center;font-family:var(--display);font-size:13px;color:var(--muted)}
@@ -149,8 +147,9 @@ label.file input{position:absolute;opacity:0;width:1px;height:1px}
 <script>
 // Standalone build: the page's own address is the QR target
 const ARTIFACT_URL=location.origin+location.pathname;
-const MAX=5;
-// How many shops the organizer may list; a participant still collects at most MAX of them
+// 5 shops = 飲み比べ達成; every listed shop = 全店制覇
+const GOAL=5;
+// How many shops the organizer may list
 const SHOP_MAX=30;
 const DEFAULT_CFG={title:"Coffee Festa まめかけ2026",date:"11/08(日) 10:00〜16:00",place:"東伯総合公園",approved:[]};
 // Example shops shown only while no real vendor has been approved; clearly labelled 見本
@@ -239,7 +238,7 @@ function shops(){
     .filter(x=>!base.some(b=>String(b.code||"").toUpperCase()===x.code));
   const all=[...base,...extra];
   // The card holds the shops this participant has stamped, in the order they were stamped
-  const list=Object.keys(S.progress.stamps||{}).map(id=>all.find(x=>x.id===id)).filter(Boolean).slice(0,MAX);
+  const list=Object.keys(S.progress.stamps||{}).map(id=>all.find(x=>x.id===id)).filter(Boolean);
   return {all,list,demo:!ap.length&&S.remote};
 }
 const ROASTS=["浅煎り","中浅煎り","中煎り","中深煎り","深煎り"];
@@ -251,13 +250,14 @@ function stampedCount(list){return list.filter(s=>S.progress.stamps[s.id]).lengt
 /* ---------- participant ---------- */
 let openId=null, justGot=null, previewURL=null, draft={roast:"",tastes:[]};
 function renderPlay(){
-  const {all,list,demo}=shops(), n=list.length, k=stampedCount(list), done=n===MAX&&k===MAX;
-  const slots=[...list,...Array(MAX-n).fill(null)];
+  const {all,list,demo}=shops(), k=list.length, total=all.length, complete=total>0&&k>=total;
+  // Stamped shops first (in the order collected), then the ones still to visit
+  const slots=[...list,...all.filter(s=>!S.progress.stamps[s.id])];
   $("#play-card").innerHTML=`
-    <div class="head"><div class="eyebrow">COFFEE STAMP RALLY ・ 最大${MAX}店</div><h2>${esc(S.cfg.title)}</h2><p>${esc(S.cfg.date)} ／ ${esc(S.cfg.place)}</p></div>
+    <div class="head"><div class="eyebrow">COFFEE STAMP RALLY ・ 全${total}店</div><h2>${esc(S.cfg.title)}</h2><p>${esc(S.cfg.date)} ／ ${esc(S.cfg.place)}</p></div>
     ${demo?`<p class="note">出店者がまだ台紙に載っていないので、<span class="tag demo">見本</span>の5店で試せます。各店のQRは「主催者」タブに出ています。</p>`:""}
-    ${!demo&&all.length>MAX?`<p class="note">出店${all.length}店の中から、好きなお店を${MAX}店まで選んで飲み比べできます。</p>`:""}
-    <div class="meter"><div class="bar"><i style="width:${k/MAX*100}%"></i></div>${k} / ${MAX} 杯</div>
+    ${total>GOAL?`<p class="note">${GOAL}店で「飲み比べ達成」、全${total}店を回ると「全店制覇」です。</p>`:""}
+    <div class="meter"><div class="bar"><i style="width:${total?k/total*100:0}%"></i></div>${k} / ${total} 店</div>
     <p class="msg" id="save-note" style="font-size:12px"></p>
     <button class="btn wide" id="scan-open">QRコードを読み込む</button>
     <div class="cups">${slots.map((s,i)=>s?`
@@ -266,7 +266,8 @@ function renderPlay(){
         <b>${esc(s.shop.replace(/^見本：/,""))}</b>
         <small>${esc(S.progress.stamps[s.id]?.roast||"")}${S.progress.stamps[s.id]?.rating?` <span class="mini">${stars(S.progress.stamps[s.id].rating)}</span>`:""}</small>
       </button>`:`<div class="slot empty"><div class="ph todo">？</div><b>QRを読むと</b><small>ここに入ります</small></div>`).join("")}</div>
-    ${done?`<div class="reward done"><strong>5杯コンプリート！</strong>飲み比べおつかれさまでした。コレクション画像を残しておきましょう。</div>`:""}
+    ${complete?`<div class="reward done"><strong>全${total}店制覇！</strong>すべてのお店を回りました。おめでとうございます！コレクション画像を残しておきましょう。</div>`
+      :k>=GOAL?`<div class="reward done"><strong>${GOAL}店 飲み比べ達成！</strong>全店制覇まであと${total-k}店です。ここまでのコレクション画像も残せます。</div>`:""}
     <button class="btn wide leaf" id="make-img" ${k?"":"disabled"}>今のコレクションを画像にする</button>
     <p class="msg" id="img-msg">${k?"何杯の時点でも画像にできます。":"1杯飲むと画像にできます。"}</p>
     <div id="img-box"></div>`;
@@ -274,7 +275,7 @@ function renderPlay(){
 }
 function renderSheet(){
   const box=$("#play-sheet");
-  const {list}=shops(), s=list.find(x=>x.id===openId);
+  const {all}=shops(), s=all.find(x=>x.id===openId);
   if(!s){box.hidden=true;box.innerHTML="";return}
   const st=S.progress.stamps[s.id];
   draft={roast:st?.roast||"",tastes:[...(st?.tastes||[])]};
@@ -326,10 +327,8 @@ function tryArrive(){
   if(!pendingCode||!ready())return;
   const {code,name}=pendingCode;pendingCode=null;
   let s=shops().all.find(x=>String(x.code||"").toUpperCase()===code);
-  const full=shops().list.length>=MAX;
-  if(!s&&name&&!full){S.progress.extra={...(S.progress.extra||{}),[code]:{shop:name}};s=shops().all.find(x=>x.code===code)}
-  if(s&&!S.progress.stamps[s.id]&&full){arrive={full:true,id:s.id}}
-  else if(!s){arrive={error:true}}
+  if(!s&&name){S.progress.extra={...(S.progress.extra||{}),[code]:{shop:name}};s=shops().all.find(x=>x.code===code)}
+  if(!s){arrive={error:true}}
   else{
     const again=!!S.progress.stamps[s.id];
     if(!again){S.progress.stamps[s.id]={at:nowLabel(),rating:0,memo:""};justGot=s.id;saveProgress()}
@@ -341,13 +340,13 @@ function renderArrive(){
   const box=$("#play-arrive");if(!box)return;
   if(!arrive){box.hidden=true;box.innerHTML="";return}
   box.hidden=false;
-  if(arrive.full){box.innerHTML=`<h3>台紙がいっぱいです</h3><p class="msg">${MAX}店のスタンプが集まっているので、これ以上は載せられません。</p><button class="btn ghost" id="arrive-close">閉じる</button>`;return}
   if(arrive.error){box.innerHTML=`<h3>このQRのお店は台紙に載っていません</h3><p class="msg">主催者に台紙の内容を確かめてください。</p><button class="btn ghost" id="arrive-close">閉じる</button>`;return}
   const s=shops().all.find(x=>x.id===arrive.id);if(!s){box.hidden=true;return}
   box.innerHTML=`<div class="eyebrow">${arrive.again?"スタンプ済みです":"STAMP GET!"}</div>
     <img class="big" src="${logoOf(s)}" alt="${esc(s.shop)}のロゴ">
     <h3>${esc(s.shop.replace(/^見本：/,""))}</h3>
     <p class="msg">${arrive.again?"このお店のスタンプはもう台紙に載っています。":"ロゴのスタンプを台紙に載せました。下で好みの星をつけられます。"}</p>
+    <p class="msg ok">${(()=>{const {list,all}=shops();const k=list.length,t=all.length;return k>=t?`全${t}店制覇！`:k===GOAL&&!arrive.again?`${GOAL}店 飲み比べ達成！（${k} / ${t} 店）`:`${k} / ${t} 店`})()}</p>
     <button class="btn ghost" id="arrive-close">台紙を見る</button>`;
 }
 window.addEventListener("hashchange",()=>{const c=parseHash();if(c){pendingCode=c;tryArrive()}});
@@ -367,28 +366,35 @@ async function makeImage(){
   g.textAlign="center";g.fillStyle=leaf;g.font=`700 26px ${B}`;g.fillText("MY COFFEE COLLECTION",W/2,130);
   g.fillStyle=roast;g.font=`900 56px ${D}`;fitText(g,S.cfg.title,W/2,205,W-160);
   g.fillStyle=muted;g.font=`500 28px ${B}`;fitText(g,`${S.cfg.date} ／ ${S.cfg.place}`,W/2,255,W-160);
-  const k=stampedCount(list);
-  const pos=[[230,440],[540,440],[850,440],[385,815],[695,815]], R=110;
-  const slots=[...list,...Array(MAX-list.length).fill(null)];
-  for(let i=0;i<MAX;i++){
+  const k=list.length, total=shops().all.length;
+  // Up to 5 keeps the large 3+2 layout (empty circles fill the gaps); more switches to a 4-column grid
+  const big=k<=GOAL, cols=big?3:4, R=big?110:78;
+  const slots=big?[...list,...Array(Math.max(0,Math.min(GOAL,total)-k)).fill(null)]:list;
+  const rows=Math.ceil(slots.length/cols), top=big?440:400, rowH=big?375:(k>8?250:300);
+  const pos=slots.map((_,i)=>{const r=Math.floor(i/cols), inRow=Math.min(cols,slots.length-r*cols), gap=big?310:240;
+    return [W/2+(i%cols-(inRow-1)/2)*gap, top+r*rowH]});
+  for(let i=0;i<slots.length;i++){
     const [x,y]=pos[i], s=slots[i], st=s&&S.progress.stamps[s.id];
     g.save();g.beginPath();g.arc(x,y,R,0,Math.PI*2);g.fillStyle="#efe8e0";g.fill();
     const img=st?await loadImg(logoOf(s)):null;
     if(img&&st){g.clip();const sc=Math.max(2*R/img.width,2*R/img.height);g.drawImage(img,x-img.width*sc/2,y-img.height*sc/2,img.width*sc,img.height*sc)}
     g.restore();
-    g.setLineDash(st?[]:[12,10]);g.lineWidth=4;g.strokeStyle=st?stamp:line;g.beginPath();g.arc(x,y,R,0,Math.PI*2);g.stroke();g.setLineDash([]);
-    if(st){
-      g.lineWidth=4;g.strokeStyle=line;g.beginPath();g.arc(x,y,R,0,Math.PI*2);g.stroke();
-
-    }else{g.fillStyle=muted;g.font=`700 26px ${B}`;g.fillText("？",x,y+9)}
-    g.fillStyle=st?ink:muted;g.font=`700 28px ${B}`;fitText(g,s?s.shop.replace(/^見本：/,""):"―",x,y+R+44,290);
-    g.font=`500 21px ${B}`;g.fillStyle=muted;fitText(g,st?[st.bean,st.roast].filter(Boolean).join("・"):"",x,y+R+74,290);
-    g.fillStyle=leaf;g.font=`700 20px ${B}`;fitText(g,st&&st.tastes?.length?st.tastes.join(" ・ "):"",x,y+R+104,290);
-    if(st&&st.rating){g.fillStyle=stamp;g.font=`26px ${B}`;g.fillText(stars(st.rating),x,y+R+136)}
+    g.setLineDash(st?[]:[12,10]);g.lineWidth=4;g.strokeStyle=st?line:line;g.beginPath();g.arc(x,y,R,0,Math.PI*2);g.stroke();g.setLineDash([]);
+    if(!st){g.fillStyle=muted;g.font=`700 26px ${B}`;g.fillText("？",x,y+9)}
+    const tw=big?290:225;
+    g.fillStyle=st?ink:muted;g.font=`700 ${big?28:24}px ${B}`;fitText(g,s?s.shop.replace(/^見本：/,""):"―",x,y+R+(big?44:36),tw);
+    if(big){
+      g.font=`500 21px ${B}`;g.fillStyle=muted;fitText(g,st?[st.bean,st.roast].filter(Boolean).join("・"):"",x,y+R+74,tw);
+      g.fillStyle=leaf;g.font=`700 20px ${B}`;fitText(g,st&&st.tastes?.length?st.tastes.join(" ・ "):"",x,y+R+104,tw);
+      if(st&&st.rating){g.fillStyle=stamp;g.font=`26px ${B}`;g.fillText(stars(st.rating),x,y+R+136)}
+    }else{
+      g.font=`500 19px ${B}`;g.fillStyle=muted;fitText(g,st?.roast||"",x,y+R+62,tw);
+      if(st&&st.rating){g.fillStyle=stamp;g.font=`22px ${B}`;g.fillText(stars(st.rating),x,y+R+90)}
+    }
   }
   // favourite
   const rated=list.filter(s=>S.progress.stamps[s.id]?.rating).sort((a,b)=>S.progress.stamps[b.id].rating-S.progress.stamps[a.id].rating);
-  g.fillStyle=roast;g.font=`900 64px ${D}`;g.fillText(`${k} / ${MAX} 杯`,W/2,1170);
+  g.fillStyle=roast;g.font=`900 64px ${D}`;g.fillText(k>=total&&total?`全${total}店制覇！`:k>=GOAL?`${k} 店 飲み比べ達成`:`${k} / ${total} 店`,W/2,1170);
   g.fillStyle=ink;g.font=`500 28px ${B}`;
   const fav=rated[0];
   fitText(g,fav?`いちばん好きだったのは ${fav.shop.replace(/^見本：/,"")}${S.progress.stamps[fav.id].memo?"「"+S.progress.stamps[fav.id].memo+"」":""}`:"星をつけると、お気に入りがここに入ります",W/2,1228,W-160);
@@ -437,7 +443,7 @@ function viewAdmin(){
     <p class="msg" id="imp-msg"></p>
   </div>
   <div class="panel"><div class="eyebrow">STEP 2</div><div class="row" style="justify-content:space-between"><h3>台紙に載せる店を選ぶ</h3><span class="tag" id="ap-count"></span></div>
-    <p class="note">「掲載する」を押した店が出店者として載ります（最大${SHOP_MAX}店）。参加者はその中から${MAX}店まで集められます。「ロゴ」から各店のロゴ画像を入れてください。入れていない店は仮のロゴになります。</p>
+    <p class="note">「掲載する」を押した店が出店者として載ります（最大${SHOP_MAX}店）。参加者は${GOAL}店で「飲み比べ達成」、全店で「全店制覇」になります。「ロゴ」から各店のロゴ画像を入れてください。入れていない店は仮のロゴになります。</p>
     <div id="admin-apps" class="wrap" style="gap:10px"></div></div>
   <div class="panel"><div class="eyebrow">STEP 3</div><h3>店ごとのQRコード</h3>
     <p class="note">「QRを保存」で画像を保存し、印刷して各店に置いてください。参加者がスマホのカメラで読むと、この台紙が開いてお店のロゴのスタンプが載ります。${shops().demo?"今は見本の5店のQRです。":""}</p>
