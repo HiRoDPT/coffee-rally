@@ -40,6 +40,9 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .bar{flex:1;height:8px;background:var(--soft);border-radius:99px;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--roast);border-radius:99px;transition:width .4s}
 .cups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.cups.five{grid-template-columns:repeat(6,minmax(0,1fr))}
+.cups.five>*{grid-column:span 2}
+.cups.five>*:nth-child(4){grid-column:2/span 2}
 .slot{position:relative;border:2px dashed var(--line);border-radius:18px;background:var(--bg);padding:8px 6px 10px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font:inherit;color:inherit;text-align:center;min-width:0}
 .slot.empty{cursor:default;opacity:.7}
 .ph{width:100%;aspect-ratio:1;max-width:100%;border-radius:50%;object-fit:cover;background:var(--soft);display:grid;place-items:center;font-family:var(--display);font-size:13px;color:var(--muted)}
@@ -249,28 +252,41 @@ function stampedCount(list){return list.filter(s=>S.progress.stamps[s.id]).lengt
 
 /* ---------- participant ---------- */
 let openId=null, justGot=null, previewURL=null, draft={roast:"",tastes:[]};
+function slotHTML(s){
+  const st=S.progress.stamps[s.id];
+  return `<button class="slot ${st?"got":""}" data-open="${s.id}" aria-label="${esc(s.shop)}${st?"（飲んだ）":""}">
+        ${st?`<img class="ph logo ${justGot===s.id?"new":""}" src="${logoOf(s)}" alt="${esc(s.shop)}のロゴ">`:`<div class="ph todo">？</div>`}
+        <b>${esc(s.shop.replace(/^見本：/,""))}</b>
+        <small>${esc(st?.roast||"")}${st?.rating?` <span class="mini">${stars(st.rating)}</span>`:""}</small>
+      </button>`;
+}
+// Card 1 holds the first GOAL shops collected; card 2 (全店制覇) opens once card 1 is full and lists every shop
 function renderPlay(){
   const {all,list,demo}=shops(), k=list.length, total=all.length, complete=total>0&&k>=total;
-  // Stamped shops first (in the order collected), then the ones still to visit
-  const slots=[...list,...all.filter(s=>!S.progress.stamps[s.id])];
+  const first=list.slice(0,GOAL), k1=first.length, second=total>GOAL&&k1>=GOAL;
+  const empty=`<div class="slot empty"><div class="ph todo">？</div><b>QRを読むと</b><small>ここに入ります</small></div>`;
   $("#play-card").innerHTML=`
-    <div class="head"><div class="eyebrow">COFFEE STAMP RALLY ・ 全${total}店</div><h2>${esc(S.cfg.title)}</h2><p>${esc(S.cfg.date)} ／ ${esc(S.cfg.place)}</p></div>
+    <div class="head"><div class="eyebrow">COFFEE STAMP RALLY ・ 1枚目</div><h2>${esc(S.cfg.title)}</h2><p>${esc(S.cfg.date)} ／ ${esc(S.cfg.place)}</p></div>
     ${demo?`<p class="note">出店者がまだ台紙に載っていないので、<span class="tag demo">見本</span>の5店で試せます。各店のQRは「主催者」タブに出ています。</p>`:""}
-    ${total>GOAL?`<p class="note">${GOAL}店で「飲み比べ達成」、全${total}店を回ると「全店制覇」です。</p>`:""}
-    <div class="meter"><div class="bar"><i style="width:${total?k/total*100:0}%"></i></div>${k} / ${total} 店</div>
+    ${total>GOAL?`<p class="note">好きなお店を${GOAL}店回って飲み比べ。${GOAL}店そろうと、2枚目の「全店制覇」台紙が開きます。</p>`:""}
+    <div class="meter"><div class="bar"><i style="width:${k1/GOAL*100}%"></i></div>${k1} / ${GOAL} 杯</div>
     <p class="msg" id="save-note" style="font-size:12px"></p>
     <button class="btn wide" id="scan-open">QRコードを読み込む</button>
-    <div class="cups">${slots.map((s,i)=>s?`
-      <button class="slot ${S.progress.stamps[s.id]?"got":""}" data-open="${s.id}" aria-label="${esc(s.shop)}${S.progress.stamps[s.id]?"（飲んだ）":""}">
-        ${S.progress.stamps[s.id]?`<img class="ph logo ${justGot===s.id?"new":""}" src="${logoOf(s)}" alt="${esc(s.shop)}のロゴ">`:`<div class="ph todo">？</div>`}
-        <b>${esc(s.shop.replace(/^見本：/,""))}</b>
-        <small>${esc(S.progress.stamps[s.id]?.roast||"")}${S.progress.stamps[s.id]?.rating?` <span class="mini">${stars(S.progress.stamps[s.id].rating)}</span>`:""}</small>
-      </button>`:`<div class="slot empty"><div class="ph todo">？</div><b>QRを読むと</b><small>ここに入ります</small></div>`).join("")}</div>
-    ${complete?`<div class="reward done"><strong>全${total}店制覇！</strong>すべてのお店を回りました。おめでとうございます！コレクション画像を残しておきましょう。</div>`
-      :k>=GOAL?`<div class="reward done"><strong>${GOAL}店 飲み比べ達成！</strong>全店制覇まであと${total-k}店です。ここまでのコレクション画像も残せます。</div>`:""}
-    <button class="btn wide leaf" id="make-img" ${k?"":"disabled"}>今のコレクションを画像にする</button>
-    <p class="msg" id="img-msg">${k?"何店の時点でも画像にできます。各店のメモも下に一緒に入ります。":"1店スタンプを集めると画像にできます。"}</p>
-    <div id="img-box"></div>`;
+    <div class="cups five">${[...first.map(slotHTML),...Array(GOAL-k1).fill(empty)].join("")}</div>
+    ${k1>=GOAL?`<div class="reward done"><strong>${GOAL}店 飲み比べ達成！</strong>${second?"2枚目の「全店制覇」台紙が開きました。下へ進んでください。":"飲み比べおつかれさまでした。"}</div>`:""}
+    <button class="btn wide leaf" id="make-img1" ${k1?"":"disabled"}>1枚目を画像にする</button>
+    <p class="msg" id="img-msg1">${k1?"何杯の時点でも画像にできます。各店のメモも下に一緒に入ります。":"1杯飲むと画像にできます。"}</p>
+    <div id="img-box1"></div>`;
+  const c2=$("#play-card2");
+  c2.hidden=!second;
+  c2.innerHTML=second?`
+    <div class="head"><div class="eyebrow">ALL SHOPS CHALLENGE ・ 2枚目</div><h2>全店制覇台紙</h2><p>全${total}店のスタンプを集めよう</p></div>
+    <div class="meter"><div class="bar"><i style="width:${k/total*100}%"></i></div>${k} / ${total} 店</div>
+    <div class="cups">${[...list,...all.filter(s=>!S.progress.stamps[s.id])].map(slotHTML).join("")}</div>
+    ${complete?`<div class="reward done"><strong>全${total}店制覇！</strong>すべてのお店を回りました。おめでとうございます！</div>`:`<p class="msg">全店制覇まであと${total-k}店です。</p>`}
+    <button class="btn wide leaf" id="make-img2">2枚目を画像にする</button>
+    <p class="msg" id="img-msg2">全店のスタンプと、集めたお店のメモが入ります。</p>
+    <div id="img-box2"></div>`:"";
   justGot=null;renderSaveNote();
 }
 function renderSheet(){
@@ -296,7 +312,7 @@ function renderSheet(){
     ${st?`<p class="msg" style="font-size:12px">間違えて読んだときは取り消すと、台紙の枠が空きます。</p>`:""}`;
 }
 function viewPlay(){
-  $("#view-play").innerHTML=`<div class="panel arrive" id="play-arrive" hidden></div><div class="panel" id="play-card"></div><div class="panel sheet" id="play-sheet" hidden></div>`;
+  $("#view-play").innerHTML=`<div class="panel arrive" id="play-arrive" hidden></div><div class="panel" id="play-card"></div><div class="panel" id="play-card2" hidden></div><div class="panel sheet" id="play-sheet" hidden></div>`;
   renderArrive();renderPlay();renderSheet();
 }
 $("#view-play").addEventListener("click",async e=>{
@@ -315,8 +331,8 @@ $("#view-play").addEventListener("click",async e=>{
   if(t.dataset.roast){draft.roast=draft.roast===t.dataset.roast?"":t.dataset.roast;t.parentNode.querySelectorAll(".chip").forEach(c=>c.classList.toggle("on",c.dataset.roast===draft.roast));return}
   if(t.dataset.taste){const x=t.dataset.taste;draft.tastes=draft.tastes.includes(x)?draft.tastes.filter(y=>y!==x):[...draft.tastes,x];t.classList.toggle("on");return}
   if(t.id==="save-memo"){Object.assign(S.progress.stamps[openId],{memo:$("#memo").value.slice(0,80),bean:$("#n-bean").value.trim().slice(0,30),roast:draft.roast,tastes:draft.tastes});await saveProgress();renderPlay();$("#memo-msg").textContent="保存しました";$("#memo-msg").className="msg ok";return}
-  if(t.id==="make-img"){await makeImage();return}
-  if(t.id==="save-img"){await saveImage();return}
+  if(t.id==="make-img1"||t.id==="make-img2"){await makeImage(+t.id.slice(-1));return}
+  if(t.id==="save-img1"||t.id==="save-img2"){await saveImage(+t.id.slice(-1));return}
 });
 
 /* ---------- QR arrival: the shop's QR opens this page with #q-<code> ---------- */
@@ -346,32 +362,33 @@ function renderArrive(){
     <img class="big" src="${logoOf(s)}" alt="${esc(s.shop)}のロゴ">
     <h3>${esc(s.shop.replace(/^見本：/,""))}</h3>
     <p class="msg">${arrive.again?"このお店のスタンプはもう台紙に載っています。":"ロゴのスタンプを台紙に載せました。下で好みの星をつけられます。"}</p>
-    <p class="msg ok">${(()=>{const {list,all}=shops();const k=list.length,t=all.length;return k>=t?`全${t}店制覇！`:k===GOAL&&!arrive.again?`${GOAL}店 飲み比べ達成！（${k} / ${t} 店）`:`${k} / ${t} 店`})()}</p>
+    <p class="msg ok">${(()=>{const {list,all}=shops();const k=list.length,t=all.length;return k>=t?`全${t}店制覇！`:k===GOAL&&!arrive.again?`${GOAL}店 飲み比べ達成！${t>GOAL?"2枚目の「全店制覇」台紙が開きました。":""}`:`${k} / ${t} 店`})()}</p>
     <button class="btn ghost" id="arrive-close">台紙を見る</button>`;
 }
 window.addEventListener("hashchange",()=>{const c=parseHash();if(c){pendingCode=c;tryArrive()}});
 
 /* ---------- collection image ---------- */
-let lastBlob=null;
+const lastBlobs={};
 function loadImg(src){return new Promise(r=>{if(!src)return r(null);const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src})}
 function cssVar(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
-async function makeImage(){
+// which=1: the 5-shop card; which=2: the 全店制覇 card. The overview (1350px) is followed by one tasting-note page per collected shop
+async function makeImage(which){
   try{await document.fonts.ready}catch(e){}
-  // Page 1 is the overview (1350px); each stamped shop then gets its own tasting-note page below it
-  const {list}=shops(), W=1080, TOP=1350, NOTE=560, H=TOP+(list.length?110+list.length*NOTE:0), c=document.createElement("canvas");c.width=W;c.height=H;
+  const sh=shops(), all=sh.all, list=which===1?sh.list.slice(0,GOAL):sh.list;
+  const W=1080, TOP=1350, NOTE=560, H=TOP+(list.length?110+list.length*NOTE:0), c=document.createElement("canvas");c.width=W;c.height=H;
   const g=c.getContext("2d");
   const ink="#2a201b",roast="#5b3a28",stamp="#9a3a1c",leaf="#2e6b5a",muted="#7a6c62",paper="#faf7f3",line="#e2d9cf";
   const D='"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif', B='"Noto Sans JP","Hiragino Sans",sans-serif';
   g.fillStyle=paper;g.fillRect(0,0,W,H);
   g.strokeStyle=line;g.lineWidth=4;g.strokeRect(40,40,W-80,TOP-80);
-  g.textAlign="center";g.fillStyle=leaf;g.font=`700 26px ${B}`;g.fillText("MY COFFEE COLLECTION",W/2,130);
+  g.textAlign="center";g.fillStyle=leaf;g.font=`700 26px ${B}`;g.fillText(which===1?"MY COFFEE COLLECTION":"ALL SHOPS CHALLENGE",W/2,130);
   g.fillStyle=roast;g.font=`900 56px ${D}`;fitText(g,S.cfg.title,W/2,205,W-160);
   g.fillStyle=muted;g.font=`500 28px ${B}`;fitText(g,`${S.cfg.date} ／ ${S.cfg.place}`,W/2,255,W-160);
-  const k=list.length, total=shops().all.length;
-  // Up to 5 keeps the large 3+2 layout (empty circles fill the gaps); more switches to a 4-column grid
-  const big=k<=GOAL, cols=big?3:4, R=big?110:78;
-  const slots=big?[...list,...Array(Math.max(0,Math.min(GOAL,total)-k)).fill(null)]:list;
-  const rows=Math.ceil(slots.length/cols), top=big?440:400, rowH=big?375:(k>8?250:300);
+  const k=list.length, total=all.length;
+  // Card 1: large 3+2 layout with empty circles for the rest; card 2: every shop in a 4-column grid
+  const big=which===1, cols=big?3:4, R=big?110:78;
+  const slots=big?[...list,...Array(Math.max(0,GOAL-k)).fill(null)]:[...list,...all.filter(s=>!S.progress.stamps[s.id])];
+  const rows=Math.ceil(slots.length/cols), top=big?440:400, rowH=big?375:(rows>2?250:300);
   const pos=slots.map((_,i)=>{const r=Math.floor(i/cols), inRow=Math.min(cols,slots.length-r*cols), gap=big?310:240;
     return [W/2+(i%cols-(inRow-1)/2)*gap, top+r*rowH]});
   for(let i=0;i<slots.length;i++){
@@ -395,7 +412,7 @@ async function makeImage(){
   }
   // favourite
   const rated=list.filter(s=>S.progress.stamps[s.id]?.rating).sort((a,b)=>S.progress.stamps[b.id].rating-S.progress.stamps[a.id].rating);
-  g.fillStyle=roast;g.font=`900 64px ${D}`;g.fillText(k>=total&&total?`全${total}店制覇！`:k>=GOAL?`${k} 店 飲み比べ達成`:`${k} / ${total} 店`,W/2,1170);
+  g.fillStyle=roast;g.font=`900 64px ${D}`;g.fillText(which===1?(k>=GOAL?`${GOAL}店 飲み比べ達成！`:`${k} / ${GOAL} 杯`):(k>=total?`全${total}店制覇！`:`${k} / ${total} 店`),W/2,1170);
   g.fillStyle=ink;g.font=`500 28px ${B}`;
   const fav=rated[0];
   fitText(g,fav?`いちばん好きだったのは ${fav.shop.replace(/^見本：/,"")}${S.progress.stamps[fav.id].memo?"「"+S.progress.stamps[fav.id].memo+"」":""}`:"星をつけると、お気に入りがここに入ります",W/2,1228,W-160);
@@ -404,11 +421,11 @@ async function makeImage(){
     g.textAlign="center";g.fillStyle=leaf;g.font=`700 26px ${B}`;g.fillText("MY TASTING NOTES",W/2,TOP+70);
     for(let i=0;i<list.length;i++)await drawNote(g,list[i],TOP+110+i*NOTE,W,NOTE-30,{ink,roast,stamp,leaf,muted,line,D,B});
   }
-  lastBlob=await new Promise(r=>c.toBlob(r,"image/png"));
-  if(previewURL)URL.revokeObjectURL(previewURL);previewURL=URL.createObjectURL(lastBlob);
-  $("#img-box").innerHTML=`<img class="preview" src="${previewURL}" alt="コレクション画像のプレビュー">
-    ${window.__dl?`<button class="btn wide" id="save-img">画像を保存する</button>`:`<p class="msg">この画面では保存ボタンが使えません。画像を長押し（右クリック）して保存してください。</p>`}`;
-  $("#img-msg").textContent="これが今のあなたのコレクションです。";$("#img-msg").className="msg ok";
+  const blob=lastBlobs[which]=await new Promise(r=>c.toBlob(r,"image/png"));
+  const url=URL.createObjectURL(blob);
+  $("#img-box"+which).innerHTML=`<img class="preview" src="${url}" alt="コレクション画像のプレビュー">
+    ${window.__dl?`<button class="btn wide" id="save-img${which}">画像を保存する</button>`:`<p class="msg">この画面では保存ボタンが使えません。画像を長押し（右クリック）して保存してください。</p>`}`;
+  $("#img-msg"+which).textContent="これが今のあなたのコレクションです。";$("#img-msg"+which).className="msg ok";
 }
 // One shop's page: logo, name, when it was stamped, stars, and everything the participant wrote
 async function drawNote(g,s,y0,W,h,c){
@@ -445,12 +462,12 @@ function wrapText(g,t,x,y,max,lh,maxLines){
   out.forEach((l,i)=>g.fillText(l,x,y+i*lh));
 }
 function fitText(g,t,x,y,max){let size=parseInt(g.font.match(/(\d+)px/)[1]);const base=g.font;while(g.measureText(t).width>max&&size>14){size-=2;g.font=base.replace(/\d+px/,size+"px")}g.fillText(t,x,y);g.font=base}
-async function saveImage(){
-  if(!lastBlob||!window.__dl)return;
-  const d=new Date();
-  try{await window.__dl.save({filename:`coffee-collection-${d.getMonth()+1}${String(d.getDate()).padStart(2,"0")}.png`,data:lastBlob});
-    $("#img-msg").textContent="保存しました。";$("#img-msg").className="msg ok"}
-  catch(e){$("#img-msg").textContent=e&&e.code==="declined"?"保存を取りやめました。":"保存できませんでした。画像を長押しして保存してください。";$("#img-msg").className="msg err"}
+async function saveImage(which){
+  const blob=lastBlobs[which];if(!blob||!window.__dl)return;
+  const d=new Date(), m=$("#img-msg"+which);
+  try{await window.__dl.save({filename:`coffee-${which===1?"collection":"all-shops"}-${d.getMonth()+1}${String(d.getDate()).padStart(2,"0")}.png`,data:blob});
+    m.textContent="保存しました。";m.className="msg ok"}
+  catch(e){m.textContent=e&&e.code==="declined"?"保存を取りやめました。":"保存できませんでした。画像を長押しして保存してください。";m.className="msg err"}
 }
 
 /* ---------- organizer ---------- */
