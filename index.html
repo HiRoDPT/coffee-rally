@@ -291,7 +291,8 @@ function renderSheet(){
       <label class="field"><span>感想</span><textarea id="memo" maxlength="80" placeholder="例：酸味が爽やか。また飲みたい">${esc(st.memo||"")}</textarea></label>
       <div class="row"><button class="btn" id="save-memo">メモを保存</button><span class="msg" id="memo-msg"></span></div>`:`
       <p class="note">お店に置いてあるQRコードをスマホのカメラで読み取ると、このマスにお店のロゴのスタンプが載ります。</p>`}
-    <div class="row"><button class="btn ghost" id="close">台紙に戻る</button></div>`;
+    <div class="row"><button class="btn ghost" id="close">台紙に戻る</button>${st?`<button class="btn ghost" id="unstamp">このスタンプを取り消す</button>`:""}</div>
+    ${st?`<p class="msg" style="font-size:12px">間違えて読んだときは取り消すと、台紙の枠が空きます。</p>`:""}`;
 }
 function viewPlay(){
   $("#view-play").innerHTML=`<div class="panel arrive" id="play-arrive" hidden></div><div class="panel" id="play-card"></div><div class="panel sheet" id="play-sheet" hidden></div>`;
@@ -302,6 +303,11 @@ $("#view-play").addEventListener("click",async e=>{
   const o=t.closest("[data-open]");
   if(o){openId=o.dataset.open;renderSheet();$("#play-sheet").scrollIntoView({behavior:"smooth",block:"nearest"});return}
   if(t.id==="close"){openId=null;renderSheet();return}
+  // Two taps so a stray tap doesn't wipe a stamp and its notes
+  if(t.id==="unstamp"){
+    if(!t.dataset.sure){t.dataset.sure="1";t.textContent="もう一度押すと取り消します（メモも消えます）";return}
+    delete S.progress.stamps[openId];await saveProgress();
+    if(arrive?.id===openId)arrive=null;openId=null;renderArrive();renderPlay();renderSheet();return}
   if(t.id==="arrive-close"){arrive=null;renderArrive();return}
   if(t.dataset.rate){S.progress.stamps[openId].rating=+t.dataset.rate;saveProgress();renderPlay();
     document.querySelectorAll("#rate button").forEach(b=>b.classList.toggle("on",+b.dataset.rate<=+t.dataset.rate));return}
