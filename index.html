@@ -150,6 +150,8 @@ label.file input{position:absolute;opacity:0;width:1px;height:1px}
 // Standalone build: the page's own address is the QR target
 const ARTIFACT_URL=location.origin+location.pathname;
 const MAX=5;
+// How many shops the organizer may list; a participant still collects at most MAX of them
+const SHOP_MAX=30;
 const DEFAULT_CFG={title:"Coffee Festa まめかけ2026",date:"11/08(日) 10:00〜16:00",place:"東伯総合公園",approved:[]};
 // Example shops shown only while no real vendor has been approved; clearly labelled 見本
 const DEMO=[
@@ -160,7 +162,19 @@ const DEMO=[
   {id:"demo-5",shop:"見本：みなと珈琲店",bean:"グアテマラ アンティグア",roast:"中深煎り",notes:"カカオとキャラメルの余韻",message:"カフェオレにも合う豆です。",code:"MINATO",image:null}
 ];
 // Final shop list baked into the page for visitors who are not signed in (they cannot read the shared store)
-const EMBEDDED=[];
+const EMBEDDED=[
+  {id:"e-KG",shop:"KG coffee",code:"KG",image:"logos/KG.jpg"},
+  {id:"e-MILESTONE",shop:"MILESTONE COFFEE",code:"MILESTONE",image:"logos/MILESTONE.jpg"},
+  {id:"e-MEET",shop:"MEET COFFEE",code:"MEET",image:"logos/MEET.jpg"},
+  {id:"e-ARTHUR",shop:"Arthur coffee",code:"ARTHUR",image:"logos/ARTHUR.jpg"},
+  {id:"e-ZEZE",shop:"是是珈琲",code:"ZEZE",image:"logos/ZEZE.jpg"},
+  {id:"e-GUFO",shop:"GUFO COFFEE",code:"GUFO",image:"logos/GUFO.jpg"},
+  {id:"e-BENINO",shop:"Benino COFFEE",code:"BENINO",image:"logos/BENINO.jpg"},
+  {id:"e-COCOTTE",shop:"Cafe Cocotte",code:"COCOTTE",image:"logos/COCOTTE.jpg"},
+  {id:"e-AROWANA",shop:"アロワナ珈琲",code:"AROWANA",image:"logos/AROWANA.jpg"},
+  {id:"e-REST",shop:"Rest Coffee",code:"REST",image:"logos/REST.jpg"},
+  {id:"e-MATAHARI",shop:"MATAHARI COFFEE",code:"MATAHARI",image:"logos/MATAHARI.jpg"}
+];
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const stars=n=>"★".repeat(n||0)+"☆".repeat(5-(n||0));
@@ -218,12 +232,15 @@ function renderSaveNote(){
 
 /* ---------- derived ---------- */
 function shops(){
-  const ap=(S.cfg.approved||[]).map(id=>S.vendors[id]&&{id,...S.vendors[id]}).filter(Boolean).slice(0,MAX);
+  const ap=(S.cfg.approved||[]).map(id=>S.vendors[id]&&{id,...S.vendors[id]}).filter(Boolean).slice(0,SHOP_MAX);
   const base=ap.length?ap:(S.remote?DEMO:EMBEDDED);
   // Shops known only from a QR's embedded name (not on the organizer's list)
   const extra=Object.entries(S.progress.extra||{}).map(([code,v])=>({id:"x-"+code,code,shop:v.shop}))
     .filter(x=>!base.some(b=>String(b.code||"").toUpperCase()===x.code));
-  return {list:[...base,...extra].slice(0,MAX),demo:!ap.length&&S.remote};
+  const all=[...base,...extra];
+  // The card holds the shops this participant has stamped, in the order they were stamped
+  const list=Object.keys(S.progress.stamps||{}).map(id=>all.find(x=>x.id===id)).filter(Boolean).slice(0,MAX);
+  return {all,list,demo:!ap.length&&S.remote};
 }
 const ROASTS=["浅煎り","中浅煎り","中煎り","中深煎り","深煎り"];
 const TASTES=["酸味","苦味","甘み","コク","フルーティー","香ばしい","すっきり","華やか"];
@@ -234,11 +251,12 @@ function stampedCount(list){return list.filter(s=>S.progress.stamps[s.id]).lengt
 /* ---------- participant ---------- */
 let openId=null, justGot=null, previewURL=null, draft={roast:"",tastes:[]};
 function renderPlay(){
-  const {list,demo}=shops(), n=list.length, k=stampedCount(list), done=n===MAX&&k===MAX;
+  const {all,list,demo}=shops(), n=list.length, k=stampedCount(list), done=n===MAX&&k===MAX;
   const slots=[...list,...Array(MAX-n).fill(null)];
   $("#play-card").innerHTML=`
     <div class="head"><div class="eyebrow">COFFEE STAMP RALLY ・ 最大${MAX}店</div><h2>${esc(S.cfg.title)}</h2><p>${esc(S.cfg.date)} ／ ${esc(S.cfg.place)}</p></div>
     ${demo?`<p class="note">出店者がまだ台紙に載っていないので、<span class="tag demo">見本</span>の5店で試せます。各店のQRは「主催者」タブに出ています。</p>`:""}
+    ${!demo&&all.length>MAX?`<p class="note">出店${all.length}店の中から、好きなお店を${MAX}店まで選んで飲み比べできます。</p>`:""}
     <div class="meter"><div class="bar"><i style="width:${k/MAX*100}%"></i></div>${k} / ${MAX} 杯</div>
     <p class="msg" id="save-note" style="font-size:12px"></p>
     <button class="btn wide" id="scan-open">QRコードを読み込む</button>
@@ -247,7 +265,7 @@ function renderPlay(){
         ${S.progress.stamps[s.id]?`<img class="ph logo ${justGot===s.id?"new":""}" src="${logoOf(s)}" alt="${esc(s.shop)}のロゴ">`:`<div class="ph todo">？</div>`}
         <b>${esc(s.shop.replace(/^見本：/,""))}</b>
         <small>${esc(S.progress.stamps[s.id]?.roast||"")}${S.progress.stamps[s.id]?.rating?` <span class="mini">${stars(S.progress.stamps[s.id].rating)}</span>`:""}</small>
-      </button>`:(S.remote?`<div class="slot empty"><div class="ph">募集中</div><b>出店者募集中</b><small>枠 ${i+1}</small></div>`:`<div class="slot empty"><div class="ph todo">？</div><b>QRを読むと</b><small>ここに入ります</small></div>`)).join("")}</div>
+      </button>`:`<div class="slot empty"><div class="ph todo">？</div><b>QRを読むと</b><small>ここに入ります</small></div>`).join("")}</div>
     ${done?`<div class="reward done"><strong>5杯コンプリート！</strong>飲み比べおつかれさまでした。コレクション画像を残しておきましょう。</div>`:""}
     <button class="btn wide leaf" id="make-img" ${k?"":"disabled"}>今のコレクションを画像にする</button>
     <p class="msg" id="img-msg">${k?"何杯の時点でも画像にできます。":"1杯飲むと画像にできます。"}</p>
@@ -301,9 +319,11 @@ function ready(){return !S.remote||(loaded.cfg&&loaded.vendors&&loaded.progress)
 function tryArrive(){
   if(!pendingCode||!ready())return;
   const {code,name}=pendingCode;pendingCode=null;
-  let s=shops().list.find(x=>String(x.code||"").toUpperCase()===code);
-  if(!s&&name&&shops().list.length<MAX){S.progress.extra={...(S.progress.extra||{}),[code]:{shop:name}};s=shops().list.find(x=>x.code===code)}
-  if(!s){arrive={error:true}}
+  let s=shops().all.find(x=>String(x.code||"").toUpperCase()===code);
+  const full=shops().list.length>=MAX;
+  if(!s&&name&&!full){S.progress.extra={...(S.progress.extra||{}),[code]:{shop:name}};s=shops().all.find(x=>x.code===code)}
+  if(s&&!S.progress.stamps[s.id]&&full){arrive={full:true,id:s.id}}
+  else if(!s){arrive={error:true}}
   else{
     const again=!!S.progress.stamps[s.id];
     if(!again){S.progress.stamps[s.id]={at:nowLabel(),rating:0,memo:""};justGot=s.id;saveProgress()}
@@ -315,8 +335,9 @@ function renderArrive(){
   const box=$("#play-arrive");if(!box)return;
   if(!arrive){box.hidden=true;box.innerHTML="";return}
   box.hidden=false;
+  if(arrive.full){box.innerHTML=`<h3>台紙がいっぱいです</h3><p class="msg">${MAX}店のスタンプが集まっているので、これ以上は載せられません。</p><button class="btn ghost" id="arrive-close">閉じる</button>`;return}
   if(arrive.error){box.innerHTML=`<h3>このQRのお店は台紙に載っていません</h3><p class="msg">主催者に台紙の内容を確かめてください。</p><button class="btn ghost" id="arrive-close">閉じる</button>`;return}
-  const s=shops().list.find(x=>x.id===arrive.id);if(!s){box.hidden=true;return}
+  const s=shops().all.find(x=>x.id===arrive.id);if(!s){box.hidden=true;return}
   box.innerHTML=`<div class="eyebrow">${arrive.again?"スタンプ済みです":"STAMP GET!"}</div>
     <img class="big" src="${logoOf(s)}" alt="${esc(s.shop)}のロゴ">
     <h3>${esc(s.shop.replace(/^見本：/,""))}</h3>
@@ -353,7 +374,7 @@ async function makeImage(){
     if(st){
       g.lineWidth=4;g.strokeStyle=line;g.beginPath();g.arc(x,y,R,0,Math.PI*2);g.stroke();
 
-    }else{g.fillStyle=muted;g.font=`700 26px ${B}`;g.fillText(s?"まだ":"募集中",x,y+9)}
+    }else{g.fillStyle=muted;g.font=`700 26px ${B}`;g.fillText("？",x,y+9)}
     g.fillStyle=st?ink:muted;g.font=`700 28px ${B}`;fitText(g,s?s.shop.replace(/^見本：/,""):"―",x,y+R+44,290);
     g.font=`500 21px ${B}`;g.fillStyle=muted;fitText(g,st?[st.bean,st.roast].filter(Boolean).join("・"):"",x,y+R+74,290);
     g.fillStyle=leaf;g.font=`700 20px ${B}`;fitText(g,st&&st.tastes?.length?st.tastes.join(" ・ "):"",x,y+R+104,290);
@@ -410,7 +431,7 @@ function viewAdmin(){
     <p class="msg" id="imp-msg"></p>
   </div>
   <div class="panel"><div class="eyebrow">STEP 2</div><div class="row" style="justify-content:space-between"><h3>台紙に載せる店を選ぶ</h3><span class="tag" id="ap-count"></span></div>
-    <p class="note">「掲載する」を押した順に台紙の枠に入ります（最大${MAX}店）。「ロゴ」から各店のロゴ画像を入れてください。入れていない店は仮のロゴになります。</p>
+    <p class="note">「掲載する」を押した店が出店者として載ります（最大${SHOP_MAX}店）。参加者はその中から${MAX}店まで集められます。「ロゴ」から各店のロゴ画像を入れてください。入れていない店は仮のロゴになります。</p>
     <div id="admin-apps" class="wrap" style="gap:10px"></div></div>
   <div class="panel"><div class="eyebrow">STEP 3</div><h3>店ごとのQRコード</h3>
     <p class="note">「QRを保存」で画像を保存し、印刷して各店に置いてください。参加者がスマホのカメラで読むと、この台紙が開いてお店のロゴのスタンプが載ります。${shops().demo?"今は見本の5店のQRです。":""}</p>
@@ -420,7 +441,7 @@ function viewAdmin(){
 }
 function renderQRs(){
   const box=$("#qr-list");if(!box)return;
-  const {list}=shops();
+  const {all:list}=shops();
   box.innerHTML=list.map(s=>`<div class="qr" data-qr="${s.id}"><div class="qr-holder"></div><span class="t">${esc(s.shop)}</span>
     <div class="row" style="justify-content:center"><button class="btn" data-saveqr="${s.id}">QRを保存</button><button class="btn ghost" data-tryqr="${s.id}">読んだことにする</button></div></div>`).join("");
   for(const s of list){
@@ -443,13 +464,13 @@ async function qrCard(s){
 function renderAdminApps(){
   const box=$("#admin-apps");if(!box)return;
   const ap=S.cfg.approved||[];
-  $("#ap-count").textContent=`掲載 ${ap.length} / ${MAX}`;
+  $("#ap-count").textContent=`掲載 ${ap.length} / ${SHOP_MAX}`;
   const list=Object.entries(S.vendors).sort((a,b)=>(a[1].createdAt||0)-(b[1].createdAt||0));
   renderQRs();
   box.innerHTML=list.length?list.map(([id,v])=>{const on=ap.includes(id);return`
     <div class="app"><img class="ph" src="${logoOf(v)}" alt="">
     <div class="body"><div class="row" style="justify-content:space-between"><input class="name-in" type="text" id="name-${id}" data-name="${id}" value="${esc(v.shop)}" aria-label="店名" style="flex:1 1 140px;min-width:0">${on?`<span class="tag ok">枠 ${ap.indexOf(id)+1}</span>`:""}</div>
-    <div class="row">${on?`<button class="btn ghost" data-unapprove="${id}">掲載をやめる</button>`:`<button class="btn leaf" data-approve="${id}" ${ap.length>=MAX?"disabled":""}>掲載する</button>`}
+    <div class="row">${on?`<button class="btn ghost" data-unapprove="${id}">掲載をやめる</button>`:`<button class="btn leaf" data-approve="${id}" ${ap.length>=SHOP_MAX?"disabled":""}>掲載する</button>`}
       <label class="file">ロゴ<input type="file" accept="image/*" data-photo="${id}"></label>
       <button class="btn ghost" data-remove="${id}">リストから消す</button></div></div></div>`}).join("")
     :`<p class="msg">まだ取り込まれた申込者はいません。STEP 1で取り込んでください。</p>`;
@@ -472,13 +493,13 @@ vad.addEventListener("click",async e=>{
   if(t.id==="c-save"){await saveCfg({...S.cfg,title:$("#c-title").value.trim()||DEFAULT_CFG.title,date:$("#c-date").value.trim(),place:$("#c-place").value.trim()});
     $("#c-msg").textContent="保存しました";$("#c-msg").className="msg ok"}
   else if(t.id==="imp-go")await importRows(parseList($("#imp-text").value));
-  else if(t.dataset.approve&&ap.length<MAX){await saveCfg({...S.cfg,approved:[...ap,t.dataset.approve]});renderAdminApps()}
+  else if(t.dataset.approve&&ap.length<SHOP_MAX){await saveCfg({...S.cfg,approved:[...ap,t.dataset.approve]});renderAdminApps()}
   else if(t.dataset.unapprove){await saveCfg({...S.cfg,approved:ap.filter(x=>x!==t.dataset.unapprove)});renderAdminApps()}
   else if(t.dataset.remove){
     if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="もう一度押すと消します";return}
     const id=t.dataset.remove;if(ap.includes(id))await saveCfg({...S.cfg,approved:ap.filter(x=>x!==id)});await deleteVendor(id);renderAdminApps()}
-  else if(t.dataset.tryqr){const s=shops().list.find(x=>x.id===t.dataset.tryqr);pendingCode={code:String(s.code).toUpperCase(),name:""};tryArrive()}
-  else if(t.dataset.saveqr){const s=shops().list.find(x=>x.id===t.dataset.saveqr);const blob=await qrCard(s);
+  else if(t.dataset.tryqr){const s=shops().all.find(x=>x.id===t.dataset.tryqr);pendingCode={code:String(s.code).toUpperCase(),name:""};tryArrive()}
+  else if(t.dataset.saveqr){const s=shops().all.find(x=>x.id===t.dataset.saveqr);const blob=await qrCard(s);
     if(blob&&window.__dl){try{await window.__dl.save({filename:`QR-${s.shop.replace(/^見本：/,"").replace(/[\\/:*?"<>|]/g,"")}.png`,data:blob})}catch(e){}}
     else{t.textContent="長押しで保存";const im=$(`[data-qr="${s.id}"] img`);if(im)im.style.display="block"}}
   else if(t.id==="reset-stamps"){S.progress={stamps:{}};await saveProgress();$("#r-msg").textContent="スタンプを消しました。";$("#r-msg").className="msg ok"}
