@@ -269,7 +269,7 @@ function renderPlay(){
     ${complete?`<div class="reward done"><strong>全${total}店制覇！</strong>すべてのお店を回りました。おめでとうございます！コレクション画像を残しておきましょう。</div>`
       :k>=GOAL?`<div class="reward done"><strong>${GOAL}店 飲み比べ達成！</strong>全店制覇まであと${total-k}店です。ここまでのコレクション画像も残せます。</div>`:""}
     <button class="btn wide leaf" id="make-img" ${k?"":"disabled"}>今のコレクションを画像にする</button>
-    <p class="msg" id="img-msg">${k?"何杯の時点でも画像にできます。":"1杯飲むと画像にできます。"}</p>
+    <p class="msg" id="img-msg">${k?"何店の時点でも画像にできます。各店のメモも下に一緒に入ります。":"1店スタンプを集めると画像にできます。"}</p>
     <div id="img-box"></div>`;
   justGot=null;renderSaveNote();
 }
@@ -357,12 +357,13 @@ function loadImg(src){return new Promise(r=>{if(!src)return r(null);const i=new 
 function cssVar(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
 async function makeImage(){
   try{await document.fonts.ready}catch(e){}
-  const {list}=shops(), W=1080,H=1350, c=document.createElement("canvas");c.width=W;c.height=H;
+  // Page 1 is the overview (1350px); each stamped shop then gets its own tasting-note page below it
+  const {list}=shops(), W=1080, TOP=1350, NOTE=560, H=TOP+(list.length?110+list.length*NOTE:0), c=document.createElement("canvas");c.width=W;c.height=H;
   const g=c.getContext("2d");
   const ink="#2a201b",roast="#5b3a28",stamp="#9a3a1c",leaf="#2e6b5a",muted="#7a6c62",paper="#faf7f3",line="#e2d9cf";
   const D='"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif', B='"Noto Sans JP","Hiragino Sans",sans-serif';
   g.fillStyle=paper;g.fillRect(0,0,W,H);
-  g.strokeStyle=line;g.lineWidth=4;g.strokeRect(40,40,W-80,H-80);
+  g.strokeStyle=line;g.lineWidth=4;g.strokeRect(40,40,W-80,TOP-80);
   g.textAlign="center";g.fillStyle=leaf;g.font=`700 26px ${B}`;g.fillText("MY COFFEE COLLECTION",W/2,130);
   g.fillStyle=roast;g.font=`900 56px ${D}`;fitText(g,S.cfg.title,W/2,205,W-160);
   g.fillStyle=muted;g.font=`500 28px ${B}`;fitText(g,`${S.cfg.date} ／ ${S.cfg.place}`,W/2,255,W-160);
@@ -399,11 +400,49 @@ async function makeImage(){
   const fav=rated[0];
   fitText(g,fav?`いちばん好きだったのは ${fav.shop.replace(/^見本：/,"")}${S.progress.stamps[fav.id].memo?"「"+S.progress.stamps[fav.id].memo+"」":""}`:"星をつけると、お気に入りがここに入ります",W/2,1228,W-160);
   const d=new Date();g.fillStyle=muted;g.font=`500 20px ${B}`;g.fillText(`${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} 作成`,W/2,1275);
+  if(list.length){
+    g.textAlign="center";g.fillStyle=leaf;g.font=`700 26px ${B}`;g.fillText("MY TASTING NOTES",W/2,TOP+70);
+    for(let i=0;i<list.length;i++)await drawNote(g,list[i],TOP+110+i*NOTE,W,NOTE-30,{ink,roast,stamp,leaf,muted,line,D,B});
+  }
   lastBlob=await new Promise(r=>c.toBlob(r,"image/png"));
   if(previewURL)URL.revokeObjectURL(previewURL);previewURL=URL.createObjectURL(lastBlob);
   $("#img-box").innerHTML=`<img class="preview" src="${previewURL}" alt="コレクション画像のプレビュー">
     ${window.__dl?`<button class="btn wide" id="save-img">画像を保存する</button>`:`<p class="msg">この画面では保存ボタンが使えません。画像を長押し（右クリック）して保存してください。</p>`}`;
   $("#img-msg").textContent="これが今のあなたのコレクションです。";$("#img-msg").className="msg ok";
+}
+// One shop's page: logo, name, when it was stamped, stars, and everything the participant wrote
+async function drawNote(g,s,y0,W,h,c){
+  const st=S.progress.stamps[s.id]||{}, x0=40, w=W-80;
+  g.fillStyle="#fffdf9";g.strokeStyle=c.line;g.lineWidth=4;roundRect(g,x0,y0,w,h,28);g.fill();g.stroke();
+  const R=95, cx=x0+50+R, cy=y0+50+R;
+  g.save();g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);g.fillStyle="#efe8e0";g.fill();
+  const img=await loadImg(logoOf(s));
+  if(img){g.clip();const sc=Math.max(2*R/img.width,2*R/img.height);g.drawImage(img,cx-img.width*sc/2,cy-img.height*sc/2,img.width*sc,img.height*sc)}
+  g.restore();g.strokeStyle=c.line;g.lineWidth=3;g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);g.stroke();
+  const tx=cx+R+40, tw=x0+w-40-tx;
+  g.textAlign="left";
+  g.fillStyle=c.roast;g.font=`900 44px ${c.D}`;fitText(g,s.shop.replace(/^見本：/,""),tx,y0+100,tw);
+  g.fillStyle=c.muted;g.font=`500 24px ${c.B}`;g.fillText(st.at?`飲んだ ${st.at}`:"",tx,y0+145);
+  g.fillStyle=c.stamp;g.font=`34px ${c.B}`;g.fillText(st.rating?stars(st.rating):"",tx,y0+195);
+  const rows=[["豆",st.bean],["焙煎",st.roast],["味",(st.tastes||[]).join("・")]];
+  let y=y0+50+2*R+50;
+  for(const [k,v] of rows){
+    g.fillStyle=c.leaf;g.font=`700 24px ${c.B}`;g.fillText(k,x0+50,y);
+    g.fillStyle=v?c.ink:c.muted;g.font=`500 28px ${c.B}`;fitText(g,v||"―",x0+150,y,w-200);y+=42;
+  }
+  g.fillStyle=c.leaf;g.font=`700 24px ${c.B}`;g.fillText("感想",x0+50,y);
+  g.fillStyle=st.memo?c.ink:c.muted;g.font=`500 28px ${c.B}`;
+  wrapText(g,st.memo||"―",x0+150,y,w-200,38,3);
+  g.textAlign="center";
+}
+function roundRect(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}
+// Wraps by character (works for Japanese without spaces); the last line gets an ellipsis if text is left over
+function wrapText(g,t,x,y,max,lh,maxLines){
+  const lines=[];let cur="";
+  for(const ch of String(t).replace(/\n/g," ")){if(g.measureText(cur+ch).width>max&&!"、。，．,.！？!?」）)ー…".includes(ch)){lines.push(cur);cur=ch}else cur+=ch}
+  if(cur)lines.push(cur);
+  const out=lines.slice(0,maxLines);if(lines.length>maxLines)out[maxLines-1]=out[maxLines-1].slice(0,-1)+"…";
+  out.forEach((l,i)=>g.fillText(l,x,y+i*lh));
 }
 function fitText(g,t,x,y,max){let size=parseInt(g.font.match(/(\d+)px/)[1]);const base=g.font;while(g.measureText(t).width>max&&size>14){size-=2;g.font=base.replace(/\d+px/,size+"px")}g.fillText(t,x,y);g.font=base}
 async function saveImage(){
