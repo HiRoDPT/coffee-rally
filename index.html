@@ -210,6 +210,35 @@ function saveCfg(c){S.cfg=c;if(!S.remote){lsave();return Promise.resolve()}retur
 function saveVendor(id,v){S.vendors[id]=v;if(!S.remote){lsave();return Promise.resolve()}return queue(()=>db.doc("vendors/"+id).set(v))}
 function deleteVendor(id){delete S.vendors[id];if(!S.remote){lsave();return Promise.resolve()}return queue(()=>db.doc("vendors/"+id).delete())}
 // Progress is always mirrored to this browser, and also to the viewer's account when the shared store accepts it
+/* ---------- anonymous counts for the organizer (Google Sheets via Apps Script) ---------- */
+// Web app URL from the organizer's spreadsheet; empty = nothing is sent
+const TRACK_URL="";
+const AKEY="coffee-rally-anon", QKEY="coffee-rally-outbox", FKEY="coffee-rally-sent";
+function lsGet(k,d){try{return JSON.parse(localStorage.getItem(k)||"null")??d}catch(e){return d}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+function anonId(){let id=lsGet(AKEY,"");if(!id){id=Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-6);lsSet(AKEY,id)}return id}
+// once=true records the event a single time per phone (open, goal5, complete)
+function track(type,s,once){
+  if(!TRACK_URL)return;
+  const sent=lsGet(FKEY,{});if(once&&sent[type])return;
+  if(once){sent[type]=1;lsSet(FKEY,sent)}
+  const q=lsGet(QKEY,[]);q.push({id:anonId(),type,code:s?.code||"",shop:s?.shop||"",t:Date.now()});lsSet(QKEY,q.slice(-200));
+  flush();
+}
+let flushing=false;
+// Queued so scans made with no signal are sent once the phone is back online
+async function flush(){
+  if(!TRACK_URL||flushing||navigator.onLine===false)return;
+  const q=lsGet(QKEY,[]);if(!q.length)return;
+  flushing=true;
+  try{await fetch(TRACK_URL,{method:"POST",mode:"no-cors",keepalive:true,headers:{"Content-Type":"text/plain"},body:JSON.stringify({events:q})});
+    lsSet(QKEY,lsGet(QKEY,[]).slice(q.length))}
+  catch(e){}
+  flushing=false;
+}
+window.addEventListener("online",flush);
+function trackMilestones(){const {list,all}=shops();if(list.length>=GOAL)track("goal5",null,true);if(all.length&&list.length>=all.length)track("complete",null,true)}
+
 const PKEY="coffee-rally-progress-v1";
 function psave(){try{localStorage.setItem(PKEY,JSON.stringify(S.progress))}catch(e){}}
 function pload(){try{const v=JSON.parse(localStorage.getItem(PKEY)||"null");return v&&v.stamps?v:null}catch(e){return null}}
@@ -230,7 +259,7 @@ function renderSaveNote(){
   const el=$("#save-note");if(!el)return;
   if(S.remote&&S.cloudOK){el.textContent="✓ 記録はあなたのアカウントに保存されています。画面やスマホを閉じても、あとで開き直せば残っています。";el.className="msg ok"}
   else if(S.remote){el.textContent="記録はこのスマホにだけ保存されています（アカウントへの保存が許可されていません）。同じブラウザで開き直せば残っています。";el.className="msg"}
-  else{el.textContent="アカウント登録なしで、記録はこのスマホに保存されます。画面を閉じても、同じブラウザで開けば残っています（プライベートモードでは残りません）。";el.className="msg"}
+  else{el.textContent="アカウント登録なしで、記録はこのスマホに保存されます。画面を閉じても、同じブラウザで開けば残っています（プライベートモードでは残りません）。"+(TRACK_URL?"参加人数を数えるため、名前などを含まない匿名の記録だけを主催者に送っています。":"");el.className="msg"}
 }
 
 /* ---------- derived ---------- */
@@ -324,7 +353,7 @@ $("#view-play").addEventListener("click",async e=>{
   // Two taps so a stray tap doesn't wipe a stamp and its notes
   if(t.id==="unstamp"){
     if(!t.dataset.sure){t.dataset.sure="1";t.textContent="もう一度押すと取り消します（メモも消えます）";return}
-    delete S.progress.stamps[openId];await saveProgress();
+    track("undo",shops().all.find(x=>x.id===openId));delete S.progress.stamps[openId];await saveProgress();
     if(arrive?.id===openId)arrive=null;openId=null;renderArrive();renderPlay();renderSheet();return}
   if(t.id==="arrive-close"){arrive=null;renderArrive();return}
   if(t.dataset.rate){S.progress.stamps[openId].rating=+t.dataset.rate;saveProgress();renderPlay();
@@ -348,7 +377,7 @@ function tryArrive(){
   if(!s){arrive={error:true}}
   else{
     const again=!!S.progress.stamps[s.id];
-    if(!again){S.progress.stamps[s.id]={at:nowLabel(),rating:0,memo:""};justGot=s.id;saveProgress()}
+    if(!again){S.progress.stamps[s.id]={at:nowLabel(),rating:0,memo:""};justGot=s.id;saveProgress();track("stamp",s);trackMilestones()}
     arrive={id:s.id,again};openId=s.id;
   }
   show("play");$("#play-arrive")?.scrollIntoView({block:"start"});
@@ -661,6 +690,7 @@ lload();
 {const pp=pload();if(pp)S.progress=mergeProgress(S.progress,pp)}
 pendingCode=parseHash();
 $("#tab-admin").hidden=location.hash!=="#admin";
+if(location.hash!=="#admin")track("open",null,true);flush();
 show("play");
 (async()=>{
   const [dbNs,user,dl]=await Promise.all(["db","user","downloads"].map(n=>(window.claude?.use?window.claude.use(n):Promise.resolve(null)).catch(()=>null)));
