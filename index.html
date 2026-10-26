@@ -218,11 +218,11 @@ function lsGet(k,d){try{return JSON.parse(localStorage.getItem(k)||"null")??d}ca
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 function anonId(){let id=lsGet(AKEY,"");if(!id){id=Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-6);lsSet(AKEY,id)}return id}
 // once=true records the event a single time per phone (open, goal5, complete)
-function track(type,s,once){
+function track(type,s,once,extra){
   if(!TRACK_URL)return;
   const sent=lsGet(FKEY,{});if(once&&sent[type])return;
   if(once){sent[type]=1;lsSet(FKEY,sent)}
-  const q=lsGet(QKEY,[]);q.push({id:anonId(),type,code:s?.code||"",shop:s?.shop||"",t:Date.now()});lsSet(QKEY,q.slice(-200));
+  const q=lsGet(QKEY,[]);q.push({id:anonId(),type,code:s?.code||"",shop:s?.shop||"",t:Date.now(),...(extra||{})});lsSet(QKEY,q.slice(-200));
   flush();
 }
 let flushing=false;
@@ -237,6 +237,13 @@ async function flush(){
   flushing=false;
 }
 window.addEventListener("online",flush);
+// The sheet keeps one note row per phone and shop, overwritten with the latest stars and memo
+let noteTimer=null;
+function trackNote(id,delay){
+  clearTimeout(noteTimer);
+  noteTimer=setTimeout(()=>{const s=shops().all.find(x=>x.id===id), st=S.progress.stamps[id];if(!s||!st)return;
+    track("note",s,false,{rating:st.rating||0,bean:st.bean||"",roast:st.roast||"",tastes:(st.tastes||[]).join("・"),memo:st.memo||""})},delay||0);
+}
 function trackMilestones(){const {list,all}=shops();if(list.length>=GOAL)track("goal5",null,true);if(all.length&&list.length>=all.length)track("complete",null,true)}
 
 const PKEY="coffee-rally-progress-v1";
@@ -259,7 +266,7 @@ function renderSaveNote(){
   const el=$("#save-note");if(!el)return;
   if(S.remote&&S.cloudOK){el.textContent="✓ 記録はあなたのアカウントに保存されています。画面やスマホを閉じても、あとで開き直せば残っています。";el.className="msg ok"}
   else if(S.remote){el.textContent="記録はこのスマホにだけ保存されています（アカウントへの保存が許可されていません）。同じブラウザで開き直せば残っています。";el.className="msg"}
-  else{el.textContent="アカウント登録なしで、記録はこのスマホに保存されます。画面を閉じても、同じブラウザで開けば残っています（プライベートモードでは残りません）。"+(TRACK_URL?"お店の来店をスタンプラリーで集計中です（匿名）。":"");el.className="msg"}
+  else{el.textContent="アカウント登録なしで、記録はこのスマホに保存されます。画面を閉じても、同じブラウザで開けば残っています（プライベートモードでは残りません）。"+(TRACK_URL?"お店の来店とメモをスタンプラリーで集計中です（匿名）。":"");el.className="msg"}
 }
 
 /* ---------- derived ---------- */
@@ -331,7 +338,7 @@ function renderSheet(){
     ${st?`<img class="hero" style="max-width:160px;aspect-ratio:1;border-radius:50%;margin:0 auto" src="${logoOf(s)}" alt="${esc(s.shop)}のロゴ">`:""}
     ${s.message?`<p>${esc(s.message)}</p>`:""}
     ${st?`
-      <div class="field"><span>あなたの好み</span><div class="stars" id="rate">${[1,2,3,4,5].map(i=>`<button data-rate="${i}" class="${i<=(st.rating||0)?"on":""}" aria-label="${i}">★</button>`).join("")}</div></div>
+      <div class="field"><span>あなたの好き度</span><div class="stars" id="rate">${[1,2,3,4,5].map(i=>`<button data-rate="${i}" class="${i<=(st.rating||0)?"on":""}" aria-label="${i}">★</button>`).join("")}</div></div>
       <label class="field"><span>豆の種類</span><input id="n-bean" type="text" maxlength="30" placeholder="例：エチオピア イルガチェフェ" value="${esc(st.bean||"")}"></label>
       <div class="field"><span>焙煎</span><div class="chips">${ROASTS.map(r=>`<button type="button" class="chip ${draft.roast===r?"on":""}" data-roast="${r}">${r}</button>`).join("")}</div></div>
       <div class="field"><span>味の特徴（いくつでも）</span><div class="chips">${TASTES.map(x=>`<button type="button" class="chip ${draft.tastes.includes(x)?"on":""}" data-taste="${x}">${x}</button>`).join("")}</div></div>
@@ -356,11 +363,11 @@ $("#view-play").addEventListener("click",async e=>{
     track("undo",shops().all.find(x=>x.id===openId));delete S.progress.stamps[openId];await saveProgress();
     if(arrive?.id===openId)arrive=null;openId=null;renderArrive();renderPlay();renderSheet();return}
   if(t.id==="arrive-close"){arrive=null;renderArrive();return}
-  if(t.dataset.rate){S.progress.stamps[openId].rating=+t.dataset.rate;saveProgress();renderPlay();
+  if(t.dataset.rate){S.progress.stamps[openId].rating=+t.dataset.rate;saveProgress();renderPlay();trackNote(openId,1500);
     document.querySelectorAll("#rate button").forEach(b=>b.classList.toggle("on",+b.dataset.rate<=+t.dataset.rate));return}
   if(t.dataset.roast){draft.roast=draft.roast===t.dataset.roast?"":t.dataset.roast;t.parentNode.querySelectorAll(".chip").forEach(c=>c.classList.toggle("on",c.dataset.roast===draft.roast));return}
   if(t.dataset.taste){const x=t.dataset.taste;draft.tastes=draft.tastes.includes(x)?draft.tastes.filter(y=>y!==x):[...draft.tastes,x];t.classList.toggle("on");return}
-  if(t.id==="save-memo"){Object.assign(S.progress.stamps[openId],{memo:$("#memo").value.slice(0,80),bean:$("#n-bean").value.trim().slice(0,30),roast:draft.roast,tastes:draft.tastes});await saveProgress();renderPlay();$("#memo-msg").textContent="保存しました";$("#memo-msg").className="msg ok";return}
+  if(t.id==="save-memo"){Object.assign(S.progress.stamps[openId],{memo:$("#memo").value.slice(0,80),bean:$("#n-bean").value.trim().slice(0,30),roast:draft.roast,tastes:draft.tastes});await saveProgress();renderPlay();trackNote(openId);$("#memo-msg").textContent="保存しました";$("#memo-msg").className="msg ok";return}
   if(t.id==="make-img1"||t.id==="make-img2"){await makeImage(+t.id.slice(-1));return}
   if(t.id==="save-img1"||t.id==="save-img2"){await saveImage(+t.id.slice(-1));return}
 });
