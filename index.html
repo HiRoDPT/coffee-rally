@@ -259,7 +259,7 @@ function renderSaveNote(){
   const el=$("#save-note");if(!el)return;
   if(S.remote&&S.cloudOK){el.textContent="✓ 記録はあなたのアカウントに保存されています。画面やスマホを閉じても、あとで開き直せば残っています。";el.className="msg ok"}
   else if(S.remote){el.textContent="記録はこのスマホにだけ保存されています（アカウントへの保存が許可されていません）。同じブラウザで開き直せば残っています。";el.className="msg"}
-  else{el.textContent="アカウント登録なしで、記録はこのスマホに保存されます。画面を閉じても、同じブラウザで開けば残っています（プライベートモードでは残りません）。"+(TRACK_URL?"参加人数を数えるため、名前などを含まない匿名の記録だけを主催者に送っています。":"");el.className="msg"}
+  else{el.textContent="アカウント登録なしで、記録はこのスマホに保存されます。画面を閉じても、同じブラウザで開けば残っています（プライベートモードでは残りません）。"+(TRACK_URL?"お店の来店をスタンプラリーで集計中です（匿名）。":"");el.className="msg"}
 }
 
 /* ---------- derived ---------- */
