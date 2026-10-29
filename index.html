@@ -603,15 +603,16 @@ async function certBack(all,B){
   g.strokeStyle=gold;g.lineWidth=10;g.strokeRect(36,36,W-72,H-72);g.lineWidth=2;g.strokeRect(58,58,W-116,H-116);
   g.textAlign="center";
   const logo=await loadImg(EVENT_LOGO);
-  let y=logo?130:150;
+  // Event name at the top; the event logo sits small between 「出店 N店舗」 and the shop logos
+  const y=150;
   g.fillStyle=gold;g.font=`700 28px ${B}`;g.fillText("THANK YOU FOR VISITING",W/2,y);
-  if(logo){const L=230, sc=Math.min(L/logo.width,L/logo.height);g.drawImage(logo,W/2-logo.width*sc/2,y+30+(L-logo.height*sc)/2,logo.width*sc,logo.height*sc);y+=30+L+10}
-  else y+=40;
-  g.fillStyle=roast;g.font=`900 76px ${B}`;fitText(g,S.cfg.title,W/2,y+70,W-180);
-  g.fillStyle=muted;g.font=`500 30px ${B}`;fitText(g,`${S.cfg.date} ／ ${S.cfg.place}`,W/2,y+125,W-180);
-  g.fillStyle=leaf;g.font=`700 26px ${B}`;g.fillText(`出店 ${all.length}店舗`,W/2,y+195);
+  g.fillStyle=roast;g.font=`900 76px ${B}`;fitText(g,S.cfg.title,W/2,y+110,W-180);
+  g.fillStyle=muted;g.font=`500 30px ${B}`;fitText(g,`${S.cfg.date} ／ ${S.cfg.place}`,W/2,y+165,W-180);
+  g.fillStyle=leaf;g.font=`700 26px ${B}`;g.fillText(`出店 ${all.length}店舗`,W/2,y+235);
+  let gy=y+235;
+  if(logo){const L=140, sc=Math.min(L/logo.width,L/logo.height), lw=logo.width*sc, lh=logo.height*sc;g.drawImage(logo,W/2-lw/2,gy+25,lw,lh);gy+=25+lh}
   // every shop's logo with its name, 4 per row
-  const cols=4, R=logo?60:80, gapX=220, rowH=logo?170:220, top=y+(logo?235:260)+R;
+  const cols=4, R=logo?60:80, gapX=220, rowH=logo?170:220, top=gy+(logo?40:105)+R;
   for(let i=0;i<all.length;i++){
     const r=Math.floor(i/cols), inRow=Math.min(cols,all.length-r*cols), x=W/2+(i%cols-(inRow-1)/2)*gapX, yy=top+r*rowH;
     g.save();g.beginPath();g.arc(x,yy,R,0,Math.PI*2);g.fillStyle="#efe8e0";g.fill();
