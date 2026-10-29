@@ -116,6 +116,7 @@ textarea{resize:vertical;min-height:60px}
 label.file{font-size:13px;color:var(--leaf);cursor:pointer;font-weight:700}
 label.file input{position:absolute;opacity:0;width:1px;height:1px}
 .preview{width:100%;max-width:100%;border-radius:14px;border:1px solid var(--line)}
+.preview+.preview{margin-top:10px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media (max-width:420px){.cups{gap:8px}.grid2{grid-template-columns:1fr}}
 </style>
@@ -324,7 +325,7 @@ function renderPlay(){
     <div class="cups five">${[...first.map(slotHTML),...Array(GOAL-k1).fill(empty)].join("")}</div>
     ${k1>=GOAL?`<div class="reward done"><strong>${GOAL}店舗 飲み比べ達成！</strong>${second?"2枚目の「全店制覇」台紙が開きました。下へ進んでください。":"飲み比べおつかれさまでした。"}</div>${certHTML(3,"飲み比べ達成認定証",`${GOAL}店舗を飲み比べたあなたへの特典です。`)}`:""}
     <button class="btn wide leaf" id="make-img1" ${k1?"":"disabled"}>1枚目を画像にする</button>
-    <p class="msg" id="img-msg1">${k1?"何杯の時点でも画像にできます。各店のメモも下に一緒に入ります。":"1杯飲むと画像にできます。"}</p>
+    <p class="msg" id="img-msg1">${k1?"何杯の時点でも画像にできます。台紙と、各店のメモの2枚になります。":"1杯飲むと画像にできます。"}</p>
     <div id="img-box1"></div>`;
   const c2=$("#play-card2");
   c2.hidden=!second;
@@ -335,7 +336,7 @@ function renderPlay(){
     ${complete?`<div class="reward done"><strong>全${total}店舗制覇！</strong>すべてのお店を回りました。おめでとうございます！</div>
     ${certHTML(4,"全店制覇認定証","全店制覇したあなただけの特典です。")}`:`<p class="msg">全店制覇まであと${total-k}店舗です。全店そろうと、特典の「全店制覇認定証」がもらえます。</p>`}
     <button class="btn wide leaf" id="make-img2">2枚目を画像にする</button>
-    <p class="msg" id="img-msg2">全店のスタンプと、集めたお店のメモが入ります。</p>
+    <p class="msg" id="img-msg2">台紙、1〜5店舗目のメモ、6店舗目からのメモの3枚になります。</p>
     <div id="img-box2"></div>`:"";
   justGot=null;renderSaveNote();
 }
@@ -426,7 +427,7 @@ function cssVar(n){return getComputedStyle(document.documentElement).getProperty
 async function makeImage(which){
   try{await document.fonts.ready}catch(e){}
   const sh=shops(), all=sh.all, list=which===1?sh.list.slice(0,GOAL):sh.list;
-  const W=1080, TOP=1350, NOTE=560, H=TOP+(list.length?110+list.length*NOTE:0), c=document.createElement("canvas");c.width=W;c.height=H;
+  const W=1080, TOP=1350, H=TOP, c=document.createElement("canvas");c.width=W;c.height=H;
   const g=c.getContext("2d");
   const ink="#2a201b",roast="#5b3a28",stamp="#9a3a1c",leaf="#2e6b5a",muted="#7a6c62",paper="#faf7f3",line="#e2d9cf";
   const D='"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif', B='"Noto Sans JP","Hiragino Sans",sans-serif';
@@ -468,15 +469,29 @@ async function makeImage(which){
   const fav=rated[0];
   fitText(g,fav?`いちばん好きだったのは ${fav.shop.replace(/^見本：/,"")}${S.progress.stamps[fav.id].memo?"「"+S.progress.stamps[fav.id].memo+"」":""}`:"星をつけると、お気に入りがここに入ります",W/2,1228,W-160);
   const d=new Date();g.fillStyle=muted;g.font=`500 20px ${B}`;g.fillText(`${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} 作成`,W/2,1275);
-  if(list.length){
-    g.textAlign="center";g.fillStyle=leaf;g.font=`700 26px ${B}`;g.fillText("MY TASTING NOTES",W/2,TOP+70);
-    for(let i=0;i<list.length;i++)await drawNote(g,list[i],TOP+110+i*NOTE,W,NOTE-30,{ink,roast,stamp,leaf,muted,line,D,B});
+  // Separate images: the card, then the notes for shops 1-5, then (card 2) shops 6 and up
+  const colors={ink,roast,stamp,leaf,muted,line,D,B}, stem=which===1?"collection":"all-shops", day=`${d.getMonth()+1}${String(d.getDate()).padStart(2,"0")}`;
+  const out=[{blob:await toBlob(c),name:`coffee-${stem}-${day}-1.png`}];
+  const groups=which===1?[list]:[list.slice(0,GOAL),list.slice(GOAL)];
+  for(let gi=0;gi<groups.length;gi++){
+    if(!groups[gi].length)continue;
+    const from=gi*GOAL+1;
+    out.push({blob:await toBlob(await notesCanvas(groups[gi],`${from}〜${from+groups[gi].length-1}店舗目`,W,paper,colors)),name:`coffee-${stem}-${day}-${out.length+1}.png`});
   }
-  const blob=lastBlobs[which]=await new Promise(r=>c.toBlob(r,"image/png"));
-  const url=URL.createObjectURL(blob);
-  $("#img-box"+which).innerHTML=`<img class="preview" src="${url}" alt="コレクション画像のプレビュー">
-    ${saveHTML(which,"画像")}`;
-  $("#img-msg"+which).textContent="これが今のあなたのコレクションです。";$("#img-msg"+which).className="msg ok";
+  lastBlobs[which]=out;
+  $("#img-box"+which).innerHTML=`${out.map((o,i)=>`<img class="preview" src="${URL.createObjectURL(o.blob)}" alt="${i?"メモの画像":"台紙の画像"}">`).join("")}
+    ${saveHTML(which,out.length>1?`${out.length}枚の画像`:"画像")}`;
+  $("#img-msg"+which).textContent=out.length>1?`台紙とメモの${out.length}枚に分かれています。`:"これが今のあなたのコレクションです。";$("#img-msg"+which).className="msg ok";
+}
+function toBlob(c){return new Promise(r=>c.toBlob(r,"image/png"))}
+// One image of tasting notes, one page per shop
+async function notesCanvas(list,label,W,paper,colors){
+  const NOTE=560, c=document.createElement("canvas");c.width=W;c.height=170+list.length*NOTE;
+  const g=c.getContext("2d");g.fillStyle=paper;g.fillRect(0,0,W,c.height);
+  g.textAlign="center";g.fillStyle=colors.leaf;g.font=`700 26px ${colors.B}`;g.fillText("MY TASTING NOTES",W/2,70);
+  g.fillStyle=colors.roast;g.font=`700 34px ${colors.B}`;fitText(g,`${S.cfg.title} ・ ${label}`,W/2,120,W-120);
+  for(let i=0;i<list.length;i++)await drawNote(g,list[i],160+i*NOTE,W,NOTE-30,colors);
+  return c;
 }
 // One shop's page: logo, name, when it was stamped, stars, and everything the participant wrote
 async function drawNote(g,s,y0,W,h,c){
@@ -561,7 +576,8 @@ async function makeCert(n){
   g.restore();
   g.textAlign="center";g.fillStyle=roast;g.font=`700 34px ${B}`;fitText(g,"Coffee Festaまめかけ実行委員会",W/2,H-122,W-200);
   g.fillStyle=leaf;g.font=`700 20px ${B}`;g.fillText("COFFEE STAMP RALLY",W/2,H-84);
-  const blob=lastBlobs[n]=await new Promise(r=>c.toBlob(r,"image/png"));
+  const blob=await toBlob(c), dd=new Date();
+  lastBlobs[n]=[{blob,name:`coffee-certificate-${full?"all":"5"}-${dd.getMonth()+1}${String(dd.getDate()).padStart(2,"0")}.png`}];
   $("#img-box"+n).innerHTML=`<img class="preview" src="${URL.createObjectURL(blob)}" alt="認定証">
     ${saveHTML(n,"認定証")}`;
   $("#img-msg"+n).textContent="おめでとうございます！あなたの認定証です。";$("#img-msg"+n).className="msg ok";
@@ -571,16 +587,15 @@ function line2(){return "#d8c9a8"}
 // Other browsers fall back to a normal download
 function canSharePhoto(){try{return !!(navigator.canShare&&navigator.canShare({files:[new File([new Blob(["x"],{type:"image/png"})],"x.png",{type:"image/png"})]}))}catch(e){return false}}
 async function saveImage(which){
-  const blob=lastBlobs[which];if(!blob)return;
-  const d=new Date(), m=$("#img-msg"+which);
-  const filename=`coffee-${which===1?"collection":which===2?"all-shops":which===3?"certificate-5":"certificate-all"}-${d.getMonth()+1}${String(d.getDate()).padStart(2,"0")}.png`;
+  const items=lastBlobs[which];if(!items||!items.length)return;
+  const m=$("#img-msg"+which), files=items.map(o=>new File([o.blob],o.name,{type:"image/png"}));
   if(canSharePhoto()){
-    try{await navigator.share({files:[new File([blob],filename,{type:"image/png"})]});
+    try{await navigator.share({files});
       m.textContent="保存できました。写真アプリを見てみてください。";m.className="msg ok";return}
     catch(e){if(e&&e.name==="AbortError"){m.textContent="保存を取りやめました。もう一度押すとやり直せます。";m.className="msg";return}}
   }
   if(!window.__dl){m.textContent="画像を長押しして「写真に追加」を選んでください。";m.className="msg err";return}
-  try{await window.__dl.save({filename,data:blob});
+  try{for(const o of items)await window.__dl.save({filename:o.name,data:o.blob});
     m.textContent="保存しました。";m.className="msg ok"}
   catch(e){m.textContent=e&&e.code==="declined"?"保存を取りやめました。":"保存できませんでした。画像を長押しして「写真に追加」を選んでください。";m.className="msg err"}
 }
