@@ -547,7 +547,7 @@ async function makeCert(n){
   const ink="#2a201b",roast="#5b3a28",stamp="#9a3a1c",leaf="#2e6b5a",muted="#7a6c62",gold="#b08a3e";
   // Canvas only gets a web font that has been loaded for the exact characters drawn
   const txt=`全店制覇飲み比べ達成認定証さまあなた${S.progress.certName||""}${GOAL}まめかけ認定`;
-  try{await Promise.all(["900","700","500"].map(w=>document.fonts.load(`${w} 40px "Noto Sans JP"`,txt+S.cfg.title+S.cfg.place+"制覇日達成日番号舗のコーヒーを飲み歩き見事全店制覇されましたここにその証として出店したで実行委員会")));await document.fonts.ready}catch(e){}
+  try{await Promise.all(["900","700","500"].map(w=>document.fonts.load(`${w} 40px "Noto Sans JP"`,txt+S.cfg.title+S.cfg.place+"制覇日達成日番号舗のコーヒーを飲み歩き見事全店制覇されましたここにその証として出店したで実行委員会舗")));await document.fonts.ready}catch(e){}
   const B='"Noto Sans JP","Hiragino Sans",sans-serif';
   g.fillStyle="#fbf6ec";g.fillRect(0,0,W,H);
   g.strokeStyle=gold;g.lineWidth=10;g.strokeRect(36,36,W-72,H-72);
@@ -588,7 +588,7 @@ async function makeCert(n){
   g.textAlign="center";g.fillStyle=roast;g.font=`700 34px ${B}`;fitText(g,"Coffee Festaまめかけ実行委員会",W/2,H-122,W-200);
   g.fillStyle=leaf;g.font=`700 20px ${B}`;g.fillText("COFFEE STAMP RALLY",W/2,H-84);
   const dd=new Date(), stem=`coffee-certificate-${full?"all":"5"}-${dd.getMonth()+1}${String(dd.getDate()).padStart(2,"0")}`;
-  lastBlobs[n]=[{blob:await toBlob(c),name:`${stem}-1.png`},{blob:await toBlob(await certBack(sh.all,B)),name:`${stem}-2.png`}];
+  lastBlobs[n]=[{blob:await toBlob(c),name:`${stem}-1.png`},{blob:await toBlob(await certBack(sh.all,B,full)),name:`${stem}-2.png`}];
   $("#img-box"+n).innerHTML=`${lastBlobs[n].map((o,i)=>`<img class="preview" src="${URL.createObjectURL(o.blob)}" alt="${i?"認定証の裏面":"認定証"}">`).join("")}
     ${saveHTML(n,"認定証（表・裏）")}`;
   $("#img-msg"+n).textContent="おめでとうございます！あなたの認定証です。";$("#img-msg"+n).className="msg ok";
@@ -596,32 +596,43 @@ async function makeCert(n){
 function line2(){return "#d8c9a8"}
 // Back of the certificate: the event name and logo, with every shop's logo as a keepsake
 const EVENT_LOGO="logos/EVENT.png";
-async function certBack(all,B){
+async function certBack(all,B,full){
   const W=1080, H=1350, c=document.createElement("canvas");c.width=W;c.height=H;
-  const g=c.getContext("2d"), roast="#5b3a28", leaf="#2e6b5a", muted="#7a6c62", gold="#b08a3e";
+  const g=c.getContext("2d"), roast="#5b3a28", leaf="#2e6b5a", muted="#7a6c62", gold="#b08a3e", goldDark="#8a6a2b";
   g.fillStyle="#fbf6ec";g.fillRect(0,0,W,H);
   g.strokeStyle=gold;g.lineWidth=10;g.strokeRect(36,36,W-72,H-72);g.lineWidth=2;g.strokeRect(58,58,W-116,H-116);
   g.textAlign="center";
   const logo=await loadImg(EVENT_LOGO);
-  // Event name at the top; the event logo sits small between 「出店 N店舗」 and the shop logos
-  const y=150;
-  g.fillStyle=gold;g.font=`700 28px ${B}`;g.fillText("THANK YOU FOR VISITING",W/2,y);
-  g.fillStyle=roast;g.font=`900 76px ${B}`;fitText(g,S.cfg.title,W/2,y+110,W-180);
-  g.fillStyle=muted;g.font=`500 30px ${B}`;fitText(g,`${S.cfg.date} ／ ${S.cfg.place}`,W/2,y+165,W-180);
-  g.fillStyle=leaf;g.font=`700 26px ${B}`;g.fillText(`出店 ${all.length}店舗`,W/2,y+235);
-  let gy=y+235;
-  if(logo){const L=140, sc=Math.min(L/logo.width,L/logo.height), lw=logo.width*sc, lh=logo.height*sc;g.drawImage(logo,W/2-lw/2,gy+25,lw,lh);gy+=25+lh}
+  g.fillStyle=gold;g.font=`700 26px ${B}`;g.fillText("THANK YOU FOR VISITING",W/2,135);
+  g.fillStyle=roast;g.font=`900 72px ${B}`;fitText(g,S.cfg.title,W/2,225,W-180);
+  // Ribbon with the certificate's name: a gold band over two notched tails
+  const label=full?"全店舗制覇認定証":"飲み比べ達成認定証", ry=300, bw=600, bh=70, tw=110;
+  g.fillStyle=goldDark;
+  for(const d of [-1,1]){
+    const inner=W/2+d*(bw/2-40), outer=W/2+d*(bw/2+tw-40);
+    g.beginPath();g.moveTo(inner,ry-bh/2+14);g.lineTo(outer,ry-bh/2+14);g.lineTo(outer-d*28,ry+14);g.lineTo(outer,ry+bh/2+14);g.lineTo(inner,ry+bh/2+14);g.closePath();g.fill();
+  }
+  g.fillStyle=gold;g.fillRect(W/2-bw/2,ry-bh/2,bw,bh);
+  g.strokeStyle="#f3e3bd";g.lineWidth=2;g.strokeRect(W/2-bw/2+8,ry-bh/2+8,bw-16,bh-16);
+  g.fillStyle="#fff";g.font=`900 40px ${B}`;try{g.letterSpacing="6px"}catch(e){}
+  g.fillText(label,W/2,ry+14);try{g.letterSpacing="0px"}catch(e){}
+  let gy=ry+bh/2;
+  if(logo){const L=130, sc=Math.min(L/logo.width,L/logo.height), lw=logo.width*sc, lh=logo.height*sc;g.drawImage(logo,W/2-lw/2,gy+34,lw,lh);gy+=34+lh}
+  g.fillStyle=leaf;g.font=`700 24px ${B}`;g.fillText(`出店 ${all.length}店舗`,W/2,gy+40);gy+=40;
   // every shop's logo with its name, 4 per row
-  const cols=4, R=logo?76:80, gapX=230, rowH=logo?200:220, top=gy+(logo?40:105)+R;
+  const cols=4, R=72, gapX=230, rowH=190, top=gy+30+R;
   for(let i=0;i<all.length;i++){
     const r=Math.floor(i/cols), inRow=Math.min(cols,all.length-r*cols), x=W/2+(i%cols-(inRow-1)/2)*gapX, yy=top+r*rowH;
     g.save();g.beginPath();g.arc(x,yy,R,0,Math.PI*2);g.fillStyle="#efe8e0";g.fill();
     const img=await loadImg(logoOf(all[i]));
     if(img){g.clip();const sc=Math.max(2*R/img.width,2*R/img.height);g.drawImage(img,x-img.width*sc/2,yy-img.height*sc/2,img.width*sc,img.height*sc)}
     g.restore();g.strokeStyle=gold;g.lineWidth=3;g.beginPath();g.arc(x,yy,R,0,Math.PI*2);g.stroke();
-    g.fillStyle=roast;g.font=`700 20px ${B}`;fitText(g,all[i].shop.replace(/^見本：/,""),x,yy+R+30,gapX-20);
+    g.fillStyle=roast;g.font=`700 20px ${B}`;fitText(g,all[i].shop.replace(/^見本：/,""),x,yy+R+28,gapX-20);
   }
-  g.fillStyle=roast;g.font=`700 30px ${B}`;fitText(g,"Coffee Festaまめかけ実行委員会",W/2,H-110,W-200);
+  // Date, place and organizer along the bottom
+  g.strokeStyle=line2();g.lineWidth=2;g.beginPath();g.moveTo(240,H-200);g.lineTo(W-240,H-200);g.stroke();
+  g.fillStyle=muted;g.font=`500 28px ${B}`;fitText(g,`${S.cfg.date} ／ ${S.cfg.place}`,W/2,H-150,W-200);
+  g.fillStyle=roast;g.font=`700 30px ${B}`;fitText(g,"Coffee Festaまめかけ実行委員会",W/2,H-100,W-200);
   return c;
 }
 // Phones: the share sheet's 「画像を保存」 puts the image in the Photos app (a plain download lands in Files on iPhone).
