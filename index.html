@@ -480,13 +480,11 @@ const SCENES={
 // Drawn in the まめかけ logo's style: white cup, dark hand-drawn outline, dot eyes.
 // 女性 = the logo's cup with coffee beans popping out; 男性 = a cup with a pour-over dripper on top; 答えない = a plain mug.
 // The region of the chosen prefecture sets the colours, age group adds a small extra, and the anonymous id varies the face
-function avatarSVG(p,seed){
-  if(!p||!p.age)return "";
-  const [col,bg,acc]=REGION_COL[regionOf(p.pref)]||REGION_COL["中国"], ink="#2a201b", bean="#8a6f4e", coffee="#5a3a24";
-  let n=0;for(const ch of String(seed||""))n=(n*31+ch.charCodeAt(0))>>>0;
+function cupChar(sex,age,n,col,acc){
+  const ink="#2a201b", bean="#8a6f4e", coffee="#5a3a24";
   const L=`stroke="${ink}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"`;
   let cup="", fy=128, fx=100, top=60;
-  if(p.sex==="女性"){
+  if(sex==="女性"){
     // the logo cup: wide bowl, handle on the left, beans jumping out of the coffee
     cup=`<path d="M50 114c-26-2-26 34 2 30" fill="none" ${L}/>
       <path d="M44 100h112c0 42-22 68-56 68s-56-26-56-68z" fill="#fff" ${L}/>
@@ -495,7 +493,7 @@ function avatarSVG(p,seed){
       <g transform="translate(122 58) rotate(16)"><ellipse rx="15" ry="23" fill="${bean}" ${L}/><path d="M1-20c-7 9 6 24 0 40" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/></g>
       <path d="M52 140c18 22 78 22 96 0" fill="none" stroke="${col}" stroke-width="7" stroke-linecap="round" opacity=".85"/>`;
     fy=122;fx=104;top=40;
-  }else if(p.sex==="男性"){
+  }else if(sex==="男性"){
     // a cup with a pour-over dripper and paper filter sitting on it
     cup=`<path d="M146 122c22 0 22 30 0 30" fill="none" ${L}/>
       <path d="M56 104h92l-6 54c-1 9-8 14-17 14H79c-9 0-16-5-17-14z" fill="#fff" ${L}/>
@@ -524,31 +522,54 @@ function avatarSVG(p,seed){
     "30代":`<path d="M30 176h140" stroke="${ink}" stroke-width="5" stroke-linecap="round"/><path d="M40 182h120" stroke="${col}" stroke-width="4" stroke-linecap="round" opacity=".6"/>`,
     "40代":`<path d="M${fx-24} ${fy-12}h14M${fx+10} ${fy-12}h14" stroke="${ink}" stroke-width="3.5" stroke-linecap="round"/>`,
     "50代":`<path d="M30 176h140" stroke="${ink}" stroke-width="5" stroke-linecap="round"/><path d="M150 172l20-26" stroke="${ink}" stroke-width="4" stroke-linecap="round"/><ellipse cx="172" cy="142" rx="6" ry="9" transform="rotate(38 172 142)" fill="#fff" ${L}/>`,
-    "60代以上":`<circle cx="${fx-16}" cy="${fy}" r="10" fill="none" stroke="${ink}" stroke-width="3"/><circle cx="${fx+16}" cy="${fy}" r="10" fill="none" stroke="${ink}" stroke-width="3"/><path d="M${fx-6} ${fy}h12" stroke="${ink}" stroke-width="3"/>`}[p.age]||"";
+    "work":`<path d="M${fx-6} ${fy+30}h12l-2 5 5 22-9 8-9-8 5-22z" fill="${acc}" stroke="${ink}" stroke-width="3" stroke-linejoin="round"/>`,
+    "60代以上":`<circle cx="${fx-16}" cy="${fy}" r="10" fill="none" stroke="${ink}" stroke-width="3"/><circle cx="${fx+16}" cy="${fy}" r="10" fill="none" stroke="${ink}" stroke-width="3"/><path d="M${fx-6} ${fy}h12" stroke="${ink}" stroke-width="3"/>`}[age]||"";
+  return `${cup}${face}${ex}`;
+}
+// Who came along, and the companions drawn beside the character: [cup type, relative size]
+const WITH=["ひとり","家族","夫婦・カップル","友だち","子どもと","仕事仲間"];
+function companions(rel,sex){
+  const other=sex==="女性"?"男性":sex==="男性"?"女性":"答えない", kid=["kid",.62];
+  return {"家族":[[other,.92],kid],"夫婦・カップル":[[other,.92]],"友だち":[[sex,.92]],"子どもと":[kid],"仕事仲間":[["work",.92]]}[rel]||[];
+}
+// Width and foot of each cup type inside its 200 box
+const CUP_BOX={"女性":[24,156,168],"男性":[50,170,172],"答えない":[56,172,170]};
+function avatarSVG(p,seed){
+  if(!p||!p.age)return "";
+  const [col,bg,acc]=REGION_COL[regionOf(p.pref)]||REGION_COL["中国"];
+  let n=0;for(const ch of String(seed||""))n=(n*31+ch.charCodeAt(0))>>>0;
+  const who=cupChar(p.sex,p.age,n,col,acc);
   // One picture: the character stands in a famous place of the prefecture, next to its specialty.
   // The scene can be swapped for another prefecture's (p.bg) while the prefecture itself stays as entered
-  const feat=PREF_FEATURE[p.pref], place=PREF_SCENE[p.bg&&PREF_SCENE[p.bg]?p.bg:p.pref], who=`${cup}${face}${ex}`, uid="c"+(n%100000);
+  const feat=PREF_FEATURE[p.pref], place=PREF_SCENE[p.bg&&PREF_SCENE[p.bg]?p.bg:p.pref], uid="c"+(n%100000);
   const [back,front]=place&&SCENES[place[0]]?SCENES[place[0]]():[`<rect width="200" height="200" fill="${bg}"/>`,""];
-  // The specialty stands on the same ground as the character, on the side away from the cup's handle, and the pair is centred
-  const handleLeft=p.sex==="女性", cx=handleLeft?22:50, mx=handleLeft?142:62, cy=place&&place[0]==="onsen"?44:58, gy=cy+104;
-  const item=feat?`<g transform="translate(${mx} ${gy-19}) scale(1.2)">${motifSVG(feat[0])}</g>`:"";
-  const art=`${back}<ellipse cx="${feat?(cx+60+mx)/2:cx+60}" cy="${gy}" rx="${feat?62:40}" ry="6" fill="#2a201b" opacity=".15"/><g transform="translate(${cx} ${cy}) scale(.6)">${who}</g>${item}${front}`;
+  // Everyone stands on one ground line, centred: companions on the cup handle's side, the specialty on the other
+  const comp=companions(p.with,p.sex), handleLeft=p.sex==="女性", s=comp.length?(comp.length>1?.46:.5):.6;
+  const gy=(place&&place[0]==="onsen"?148:162)-(comp.length?6:0);
+  const fig=(type,k,svg)=>{const [x0,x1,foot]=CUP_BOX[type];return {w:(x1-x0)*k,draw:x=>`<g transform="translate(${x-x0*k} ${gy-foot*k}) scale(${k})">${svg}</g>`}};
+  const people=comp.map(([t,k],i)=>t==="kid"?fig("答えない",s*k,cupChar("答えない","10代以下",n+7,col,acc)):t==="work"?fig("答えない",s*k,cupChar("答えない","work",n+3,col,acc)):fig(t,s*k,cupChar(t,"",n+i+1,col,acc)));
+  const me=fig(p.sex in CUP_BOX?p.sex:"答えない",s,who), ik=comp.length?1:1.2;
+  const item=feat?{w:36*ik,draw:x=>`<g transform="translate(${x+18*ik} ${gy-19*ik}) scale(${ik})">${motifSVG(feat[0])}</g>`}:null;
+  const row=handleLeft?[...people.reverse(),me,item]:[item,me,...people];
+  const line=row.filter(Boolean), gap=comp.length?-2:4, total=line.reduce((t,f)=>t+f.w,0)+gap*(line.length-1);
+  let x=100-total/2;const drawn=line.map(f=>{const g=f.draw(x);x+=f.w+gap;return g}).join("");
+  const art=`${back}<ellipse cx="100" cy="${gy}" rx="${total/2+6}" ry="6" fill="#2a201b" opacity=".15"/>${drawn}${front}`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><defs><clipPath id="${uid}"><circle cx="100" cy="100" r="100"/></clipPath></defs><g clip-path="url(#${uid})">${art}</g></svg>`;
 }
 function avatarURL(){const p=S.progress.profile;return p&&p.age?"data:image/svg+xml;charset=utf-8,"+encodeURIComponent(avatarSVG(p,anonId())):""}
 let profDraft=null;
 function profileHTML(){
-  const d=profDraft||{...(S.progress.profile||{})}, ready=d.age&&d.sex&&d.pref, reg=regionOf(d.pref);
-  const svg=avatarSVG({age:d.age||"20代",sex:d.sex||"答えない",pref:d.pref||"鳥取県",bg:d.bg},anonId());
+  const d=profDraft||{...(S.progress.profile||{})}, ready=d.age&&d.sex&&d.pref&&(d.city||"").trim()&&d.with, reg=regionOf(d.pref);
+  const svg=avatarSVG({age:d.age||"20代",sex:d.sex||"答えない",pref:d.pref||"鳥取県",bg:d.bg,with:d.with},anonId());
   const group=(label,key,list)=>`<div class="field"><span>${label}</span><div class="chips">${list.map(v=>`<button type="button" class="chip ${d[key]===v?"on":""}" data-prof="${key}" data-v="${v}">${v}</button>`).join("")}</div></div>`;
   return `<div class="eyebrow">MY AVATAR</div><h3>あなたのアバターを作ろう</h3>
     <div class="avatar-pre${ready?"":" ghost"}">${svg}</div>
     ${reg?`<p class="msg" style="text-align:center;margin:-6px 0 0">${esc(reg==="海外"?"海外":reg+"地方")}カラー：${REGION_COL[reg][3]}<br>${esc(PREF_SCENE[d.bg||d.pref][1])}で${esc(PREF_FEATURE[d.pref][1])}と一緒のあなた</p>`:""}
-    <p class="note">年代・性別・お住まいを選ぶと、あなただけのコーヒーキャラができます。色はお住まいの地方で変わり、都道府県の名所の景色の中に名物と一緒に描かれます。景色は別の場所にも変えられます。台紙と認定証に載ります。答えは匿名で集計し、今後のイベントづくりに使います。</p>
-    ${group("年代","age",AGES)}${group("性別","sex",SEXES)}
+    <p class="note">年代・性別・お住まい・誰と来たかを選ぶと、あなただけのコーヒーキャラができます。一緒に来た人もとなりに並びます。色はお住まいの地方で変わり、都道府県の名所の景色の中に名物と一緒に描かれます。景色は別の場所にも変えられます。台紙と認定証に載ります。答えは匿名で集計し、今後のイベントづくりに使います。</p>
+    ${group("年代","age",AGES)}${group("性別","sex",SEXES)}${group("誰と来た？","with",WITH)}
     <div class="grid2"><label class="field"><span>都道府県</span><select id="prof-pref"><option value="">選んでください</option>${PREFS.map(v=>`<option ${d.pref===v?"selected":""}>${v}</option>`).join("")}</select></label>
-    <label class="field"><span>市区町村（任意）</span><input id="prof-city" type="text" maxlength="20" placeholder="例：琴浦町" value="${esc(d.city||"")}"></label></div>
-    ${d.pref?`<label class="field"><span>背景の景色</span><select id="prof-bg"><option value="">${esc(PREF_SCENE[d.pref][1])}（${esc(d.pref)}）</option>${PREFS.filter(v=>v!==d.pref).map(v=>`<option value="${v}" ${d.bg===v?"selected":""}>${esc(PREF_SCENE[v][1])}（${v}）</option>`).join("")}</select></label>`:""}
+    <label class="field"><span>市区町村</span><input id="prof-city" type="text" maxlength="20" placeholder="例：琴浦町" value="${esc(d.city||"")}"></label></div>
+    ${d.pref?`<label class="field"><span>背景の景色</span><select id="prof-bg">${PREFS.map(v=>`<option value="${v}" ${(d.bg||d.pref)===v?"selected":""}>${esc(PREF_SCENE[v][1])}（${v}）</option>`).join("")}</select></label>`:""}
     <div class="row"><button class="btn" id="prof-save" ${ready?"":"disabled"}>このアバターにする</button>
       ${S.progress.profile?`<button class="btn ghost" id="prof-cancel">やめる</button><button class="btn ghost" id="prof-none">アバターを使わない</button>`:`<button class="btn ghost" id="prof-none">アバターを作らない</button>`}</div>`;
 }
@@ -564,7 +585,7 @@ function renderPlay(){
   const empty=`<button class="slot empty" data-scan aria-label="押すとQRを読み込みます"><div class="ph todo">？</div><b>ここを押して</b><small>QRを読み込む</small></button>`;
   $("#play-card").innerHTML=`
     <div class="head"><div class="eyebrow">COFFEE STAMP RALLY ・ 1枚目</div><h2>${esc(S.cfg.title)}</h2><p>${esc(S.cfg.date)} ／ ${esc(S.cfg.place)}</p></div>
-    ${S.progress.profile?`<div class="me"><img src="${avatarURL()}" alt="あなたのアバター"><span>あなたのアバター<small>${esc(S.progress.profile.age)}・${esc(S.progress.profile.pref)}${esc(S.progress.profile.city||"")}</small></span><button class="btn ghost" id="prof-edit">変える</button></div>`
+    ${S.progress.profile?`<div class="me"><img src="${avatarURL()}" alt="あなたのアバター"><span>あなたのアバター<small>${esc(S.progress.profile.age)}・${esc(S.progress.profile.pref)}${esc(S.progress.profile.city||"")}${S.progress.profile.with&&S.progress.profile.with!=="ひとり"?"・"+esc(S.progress.profile.with)+"で来場":""}</small></span><button class="btn ghost" id="prof-edit">変える</button></div>`
       :S.progress.profileSkip?`<div class="me"><span class="me-add">？</span><span>アバターはまだありません</span><button class="btn ghost" id="prof-edit">作る</button></div>`:""}
     ${demo?`<p class="note">コーヒーショップがまだ台紙に載っていないので、<span class="tag demo">見本</span>の5店で試せます。各店のQRは「主催者」タブに出ています。</p>`:""}
     ${total>GOAL?`<p class="note">好きなお店を${GOAL}店舗回って飲み比べ。${GOAL}店舗そろうと「飲み比べ達成認定証」がもらえて、2枚目の「全店制覇」台紙が開きます。</p>`:""}
@@ -623,8 +644,8 @@ $("#view-play").addEventListener("click",async e=>{
   const o=t.closest("[data-open]");
   if(t.dataset.prof){profDraft=profDraft||{...(S.progress.profile||{})};profDraft[t.dataset.prof]=t.dataset.v;const c=$("#prof-city")?.value;if(c!=null)profDraft.city=c;renderProfile();return}
   if(t.id==="prof-save"&&profDraft){const city=($("#prof-city")?.value||"").replace(/[・\s]/g,"").slice(0,20);
-    S.progress.profile={age:profDraft.age,sex:profDraft.sex,pref:profDraft.pref,city};if(profDraft.bg)S.progress.profile.bg=profDraft.bg;profDraft=null;await saveProgress();
-    track("profile",null,false,{what:`${S.progress.profile.age}・${S.progress.profile.sex}・${S.progress.profile.pref}・${city}`});renderProfile();renderPlay();return}
+    S.progress.profile={age:profDraft.age,sex:profDraft.sex,pref:profDraft.pref,city,with:profDraft.with};if(profDraft.bg&&profDraft.bg!==profDraft.pref)S.progress.profile.bg=profDraft.bg;profDraft=null;await saveProgress();
+    track("profile",null,false,{what:`${S.progress.profile.age}・${S.progress.profile.sex}・${S.progress.profile.pref}・${city}・${S.progress.profile.with.replace("・","/")}`});renderProfile();renderPlay();return}
   if(t.id==="prof-cancel"){profDraft=null;renderProfile();return}
   // Choosing not to have an avatar is kept, and a later 「作る」 can still make one
   if(t.id==="prof-none"){const had=!!S.progress.profile;delete S.progress.profile;S.progress.profileSkip=true;profDraft=null;await saveProgress();
@@ -649,11 +670,16 @@ $("#view-play").addEventListener("click",async e=>{
   if(t.id==="del-photo"){delete S.progress.stamps[openId].photo;await saveProgress();trackNote(openId);renderSheet();return}
 });
 
+// The town is required, so typing it is what enables saving
+$("#view-play").addEventListener("input",e=>{
+  if(e.target.id!=="prof-city")return;profDraft=profDraft||{...(S.progress.profile||{})};profDraft.city=e.target.value;
+  const d=profDraft, b=$("#prof-save"), ok=!!(d.age&&d.sex&&d.pref&&d.city.trim()&&d.with);if(b)b.disabled=!ok;$(".avatar-pre")?.classList.toggle("ghost",!ok);
+});
 // A photo for a shop's notes: shrunk on the phone so a dozen fit in browser storage
 $("#view-play").addEventListener("change",async e=>{
   if(e.target.id==="prof-bg"){profDraft=profDraft||{...(S.progress.profile||{})};profDraft.bg=e.target.value;
     const c=$("#prof-city")?.value;if(c!=null)profDraft.city=c;renderProfile();return}
-  if(e.target.id==="prof-pref"){profDraft=profDraft||{...(S.progress.profile||{})};profDraft.pref=e.target.value;if(profDraft.bg===profDraft.pref)profDraft.bg="";
+  if(e.target.id==="prof-pref"){profDraft=profDraft||{...(S.progress.profile||{})};profDraft.pref=e.target.value;profDraft.bg="";
     const c=$("#prof-city")?.value;if(c!=null)profDraft.city=c;renderProfile();return}
   if(!/^n-photo/.test(e.target.id)||!e.target.files?.[0]||!openId)return;
   const st=S.progress.stamps[openId], msg=$("#photo-msg");msg.textContent="読み込み中…";msg.className="msg";
