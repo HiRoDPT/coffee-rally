@@ -44,7 +44,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .cups.five>*{grid-column:span 2}
 .cups.five>*:nth-child(4){grid-column:2/span 2}
 .slot{position:relative;border:2px dashed var(--line);border-radius:18px;background:var(--bg);padding:8px 6px 10px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font:inherit;color:inherit;text-align:center;min-width:0}
-.slot.empty{cursor:default;opacity:.7}
+.slot.empty{opacity:.8}
 .ph{width:100%;aspect-ratio:1;max-width:100%;border-radius:50%;object-fit:cover;background:var(--soft);display:grid;place-items:center;font-family:var(--display);font-size:13px;color:var(--muted)}
 .slot b{font-size:12px;line-height:1.35;overflow-wrap:anywhere}
 .slot small{font-size:11px;color:var(--muted)}
@@ -294,7 +294,8 @@ function stampedCount(list){return list.filter(s=>S.progress.stamps[s.id]).lengt
 let openId=null, justGot=null, previewURL=null, draft={roast:"",tastes:[]};
 function slotHTML(s){
   const st=S.progress.stamps[s.id];
-  return `<button class="slot ${st?"got":""}" data-open="${s.id}" aria-label="${esc(s.shop)}${st?"（飲んだ）":""}">
+  // An empty spot opens the QR reader; a stamped one opens its notes
+  return `<button class="slot ${st?"got":""}" ${st?`data-open="${s.id}"`:"data-scan"} aria-label="${esc(s.shop)}${st?"（飲んだ）":"：押すとQRを読み込みます"}">
         ${st?`<img class="ph logo ${justGot===s.id?"new":""}" src="${logoOf(s)}" alt="${esc(s.shop)}のロゴ">`:`<div class="ph todo">？</div>`}
         <b>${esc(s.shop.replace(/^見本：/,""))}</b>
         <small>${esc(st?.roast||"")}${st?.rating?` <span class="mini">${stars(st.rating)}</span>`:""}</small>
@@ -314,7 +315,7 @@ function certHTML(n,title,lead){return `<div class="cert">
 function renderPlay(){
   const {all,list,demo}=shops(), k=list.length, total=all.length, complete=total>0&&k>=total;
   const first=list.slice(0,GOAL), k1=first.length, second=total>GOAL&&k1>=GOAL;
-  const empty=`<div class="slot empty"><div class="ph todo">？</div><b>QRを読むと</b><small>ここに入ります</small></div>`;
+  const empty=`<button class="slot empty" data-scan aria-label="押すとQRを読み込みます"><div class="ph todo">？</div><b>ここを押して</b><small>QRを読み込む</small></button>`;
   $("#play-card").innerHTML=`
     <div class="head"><div class="eyebrow">COFFEE STAMP RALLY ・ 1枚目</div><h2>${esc(S.cfg.title)}</h2><p>${esc(S.cfg.date)} ／ ${esc(S.cfg.place)}</p></div>
     ${demo?`<p class="note">出店者がまだ台紙に載っていないので、<span class="tag demo">見本</span>の5店で試せます。各店のQRは「主催者」タブに出ています。</p>`:""}
@@ -484,38 +485,48 @@ async function makeImage(which){
   $("#img-msg"+which).textContent=out.length>1?`台紙とメモの${out.length}枚に分かれています。`:"これが今のあなたのコレクションです。";$("#img-msg"+which).className="msg ok";
 }
 function toBlob(c){return new Promise(r=>c.toBlob(r,"image/png"))}
-// One image of tasting notes, one page per shop
-async function notesCanvas(list,label,W,paper,colors){
-  const NOTE=560, c=document.createElement("canvas");c.width=W;c.height=170+list.length*NOTE;
-  const g=c.getContext("2d");g.fillStyle=paper;g.fillRect(0,0,W,c.height);
-  g.textAlign="center";g.fillStyle=colors.leaf;g.font=`700 26px ${colors.B}`;g.fillText("MY TASTING NOTES",W/2,70);
-  g.fillStyle=colors.roast;g.font=`700 34px ${colors.B}`;fitText(g,`${S.cfg.title} ・ ${label}`,W/2,120,W-120);
-  for(let i=0;i<list.length;i++)await drawNote(g,list[i],160+i*NOTE,W,NOTE-30,colors);
-  return c;
+// One image of tasting notes, same size as the card image: shops in two columns, each cell sized to fit
+async function notesCanvas(list,label,W,paper,c){
+  const H=1350, cv=document.createElement("canvas");cv.width=W;cv.height=H;
+  const g=cv.getContext("2d");g.fillStyle=paper;g.fillRect(0,0,W,H);
+  g.strokeStyle=c.line;g.lineWidth=4;g.strokeRect(40,40,W-80,H-80);
+  g.textAlign="center";g.fillStyle=c.leaf;g.font=`700 26px ${c.B}`;g.fillText("MY TASTING NOTES",W/2,120);
+  g.fillStyle=c.roast;g.font=`700 36px ${c.B}`;fitText(g,`${S.cfg.title} ・ ${label}`,W/2,175,W-160);
+  const x0=80, top=220, gap=24, cw=(W-2*x0-gap)/2, rows=Math.ceil(list.length/2), ch=(1270-top-(rows-1)*20)/rows;
+  for(let i=0;i<list.length;i++){
+    const r=Math.floor(i/2), alone=i===list.length-1&&list.length%2===1;
+    const x=alone?(W-cw)/2:x0+(i%2)*(cw+gap), y=top+r*(ch+20);
+    await drawNote(g,list[i],x,y,cw,ch,c);
+  }
+  return cv;
 }
-// One shop's page: logo, name, when it was stamped, stars, and everything the participant wrote
-async function drawNote(g,s,y0,W,h,c){
-  const st=S.progress.stamps[s.id]||{}, x0=40, w=W-80;
-  g.fillStyle="#fffdf9";g.strokeStyle=c.line;g.lineWidth=4;roundRect(g,x0,y0,w,h,28);g.fill();g.stroke();
-  const R=95, cx=x0+50+R, cy=y0+50+R;
+// One shop's cell: logo, name, when it was stamped, stars, then bean/roast, taste and the participant's memo
+async function drawNote(g,s,x,y,w,h,c){
+  // Short cells (7 shops on one image) put the time and stars on one line so the memo keeps room
+  const st=S.progress.stamps[s.id]||{}, small=h<300, P=small?18:22, R=small?34:44, LH=small?28:30;
+  g.fillStyle="#fffdf9";g.strokeStyle=c.line;g.lineWidth=3;roundRect(g,x,y,w,h,22);g.fill();g.stroke();
+  const cx=x+P+R, cy=y+P+R;
   g.save();g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);g.fillStyle="#efe8e0";g.fill();
   const img=await loadImg(logoOf(s));
   if(img){g.clip();const sc=Math.max(2*R/img.width,2*R/img.height);g.drawImage(img,cx-img.width*sc/2,cy-img.height*sc/2,img.width*sc,img.height*sc)}
-  g.restore();g.strokeStyle=c.line;g.lineWidth=3;g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);g.stroke();
-  const tx=cx+R+40, tw=x0+w-40-tx;
+  g.restore();g.strokeStyle=c.line;g.lineWidth=2;g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);g.stroke();
+  const tx=cx+R+18, tw=x+w-P-tx;
   g.textAlign="left";
-  g.fillStyle=c.roast;g.font=`900 44px ${c.D}`;fitText(g,s.shop.replace(/^見本：/,""),tx,y0+100,tw);
-  g.fillStyle=c.muted;g.font=`500 24px ${c.B}`;g.fillText(st.at?`飲んだ ${st.at}`:"",tx,y0+145);
-  g.fillStyle=c.stamp;g.font=`34px ${c.B}`;g.fillText(st.rating?stars(st.rating):"",tx,y0+195);
-  const rows=[["豆",st.bean],["焙煎",st.roast],["味",(st.tastes||[]).join("・")]];
-  let y=y0+50+2*R+50;
+  g.fillStyle=c.roast;g.font=`700 28px ${c.B}`;fitText(g,s.shop.replace(/^見本：/,""),tx,y+P+28,tw);
+  g.fillStyle=c.muted;g.font=`500 18px ${c.B}`;const at=st.at?`飲んだ ${st.at}`:"";g.fillText(at,tx,y+P+58);
+  g.fillStyle=c.stamp;g.font=`${small?20:24}px ${c.B}`;
+  if(small)g.fillText(st.rating?stars(st.rating):"",tx+g.measureText(at).width+(at?14:0)+ (at?20:0),y+P+58);
+  else g.fillText(st.rating?stars(st.rating):"",tx,y+P+90);
+  const lx=x+P, vx=x+P+62, vw=w-2*P-62;
+  const rows=[["豆",[st.bean,st.roast].filter(Boolean).join("・")],["味",(st.tastes||[]).join("・")]];
+  let ly=y+P+2*R+(small?32:42);
   for(const [k,v] of rows){
-    g.fillStyle=c.leaf;g.font=`700 24px ${c.B}`;g.fillText(k,x0+50,y);
-    g.fillStyle=v?c.ink:c.muted;g.font=`500 28px ${c.B}`;fitText(g,v||"―",x0+150,y,w-200);y+=42;
+    g.fillStyle=c.leaf;g.font=`700 19px ${c.B}`;g.fillText(k,lx,ly);
+    g.fillStyle=v?c.ink:c.muted;g.font=`500 ${small?20:21}px ${c.B}`;fitText(g,v||"―",vx,ly,vw);ly+=LH;
   }
-  g.fillStyle=c.leaf;g.font=`700 24px ${c.B}`;g.fillText("感想",x0+50,y);
-  g.fillStyle=st.memo?c.ink:c.muted;g.font=`500 28px ${c.B}`;
-  wrapText(g,st.memo||"―",x0+150,y,w-200,38,3);
+  g.fillStyle=c.leaf;g.font=`700 19px ${c.B}`;g.fillText("感想",lx,ly);
+  g.fillStyle=st.memo?c.ink:c.muted;g.font=`500 ${small?20:21}px ${c.B}`;
+  wrapText(g,st.memo||"―",vx,ly,vw,LH,Math.max(1,Math.floor((y+h-ly-10)/LH)+1));
   g.textAlign="center";
 }
 function roundRect(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}
@@ -777,7 +788,7 @@ $("#scan-file").addEventListener("change",e=>{
     if(!t)$("#scan-msg").textContent="QRコードが見つかりませんでした。QRコードが大きく写るように撮り直してください。";else handleScanned(t)};
   img.src=URL.createObjectURL(f);e.target.value="";
 });
-document.addEventListener("click",e=>{if(e.target.id==="scan-open")openScanner()});
+document.addEventListener("click",e=>{if(e.target.id==="scan-open"||e.target.closest("[data-scan]"))openScanner()});
 
 /* ---------- in-app browser warning (QR apps, LINE, Instagram, Google app...) ---------- */
 if(/Line\/|FBAN|FBAV|Instagram|MicroMessenger|KAKAOTALK|GSA\/|YJApp/i.test(navigator.userAgent))$("#inapp").hidden=false;
