@@ -341,33 +341,55 @@ const AREAS=["琴浦町","北栄町","湯梨浜町","三朝町","倉吉市","鳥
 const AREA_COL={"琴浦町":["#c8553d","#fde8df","#2e6b5a"],"北栄町":["#e0a03a","#fdf1d8","#5b3a28"],"湯梨浜町":["#3f88c5","#e1effa","#c8553d"],"三朝町":["#8a5a9e","#f1e6f6","#e0a03a"],
   "倉吉市":["#2e6b5a","#e0f1ea","#c8553d"],"鳥取市":["#d98c2b","#fbeedc","#3f88c5"],"米子市":["#4f7cac","#e4edf7","#e0a03a"],"境港市":["#2f8f9d","#ddf2f4","#c8553d"],
   "そのほかの県内":["#7a8b3a","#eef2dc","#5b3a28"],"県外":["#5b3a28","#f1e8df","#e0a03a"]};
+// Drawn in the まめかけ logo's style: white cup, dark hand-drawn outline, dot eyes.
+// 女性 = the logo's cup with coffee beans popping out; 男性 = a cup with a pour-over dripper on top; 答えない = a plain mug.
+// Area sets the colours, age group adds a small extra, and the anonymous id varies the face
 function avatarSVG(p,seed){
   if(!p||!p.age)return "";
-  const [cup,bg,acc]=AREA_COL[p.area]||AREA_COL["県外"], dark="#3b2a20", cream="#fff7ea";
+  const [col,bg,acc]=AREA_COL[p.area]||AREA_COL["県外"], ink="#2a201b", bean="#8a6f4e", coffee="#5a3a24";
   let n=0;for(const ch of String(seed||""))n=(n*31+ch.charCodeAt(0))>>>0;
-  const happy=n%2===0, open=(n>>1)%3===0;
-  let body="", top=70, faceY=118;
-  switch(p.age){
-    case "10代以下":body=`<rect x="52" y="80" width="96" height="80" rx="22" fill="${cup}"/><path d="M148 98c26 0 26 44 0 44" stroke="${cup}" stroke-width="12" fill="none"/>
-      <ellipse cx="100" cy="82" rx="46" ry="10" fill="#7b4a2e"/><rect x="72" y="66" width="18" height="16" rx="4" fill="${cream}"/><rect x="96" y="62" width="18" height="16" rx="4" fill="#ffd6e0"/><rect x="118" y="68" width="16" height="14" rx="4" fill="${cream}"/>`;top=60;faceY=122;break;
-    case "20代":body=`<path d="M58 72h84l-12 92H70z" fill="${cup}"/><rect x="52" y="60" width="96" height="16" rx="6" fill="${dark}"/><rect x="66" y="50" width="68" height="14" rx="6" fill="${dark}"/>
-      <path d="M62 104h76l-3 26H65z" fill="${cream}" opacity=".9"/>`;top=48;faceY=118;break;
-    case "30代":body=`<ellipse cx="100" cy="164" rx="70" ry="10" fill="${cream}" stroke="${dark}" stroke-width="3"/><path d="M40 86h120c0 52-26 72-60 72s-60-20-60-72z" fill="${cup}"/>
-      <path d="M158 100c22 0 20 32-6 32" stroke="${cup}" stroke-width="10" fill="none"/><ellipse cx="100" cy="86" rx="60" ry="10" fill="#e8c9a0"/><path d="M92 82c0-6 8-6 8 0c0-6 8-6 8 0c0 5-8 8-8 10c0-2-8-5-8-10z" fill="${cream}"/>`;top=74;faceY=118;break;
-    case "40代":body=`<rect x="58" y="62" width="84" height="102" rx="14" fill="${cup}"/><path d="M142 84c30 0 30 52 0 52" stroke="${cup}" stroke-width="12" fill="none"/><ellipse cx="100" cy="64" rx="42" ry="8" fill="#5a3522"/>`;top=54;faceY=116;break;
-    case "50代":body=`<ellipse cx="100" cy="162" rx="64" ry="11" fill="${cream}" stroke="${dark}" stroke-width="3"/><path d="M56 82h88l-8 62c-2 10-10 16-20 16H84c-10 0-18-6-20-16z" fill="${cup}"/>
-      <path d="M142 96c20 0 18 30-4 30" stroke="${cup}" stroke-width="9" fill="none"/><ellipse cx="100" cy="82" rx="44" ry="8" fill="#5a3522"/>`;top=70;faceY=120;break;
-    default:body=`<path d="M60 70h80l-6 90c-1 6-6 8-12 8H78c-6 0-11-2-12-8z" fill="${cup}"/><ellipse cx="100" cy="70" rx="40" ry="8" fill="#5a3522"/>
-      <path d="M74 52c-8-10 8-14 0-26M100 50c-8-10 8-14 0-26M126 52c-8-10 8-14 0-26" stroke="#c9b8a8" stroke-width="4" fill="none" stroke-linecap="round"/>`;top=40;faceY=116;
+  const L=`stroke="${ink}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"`;
+  let cup="", fy=128, fx=100, top=60;
+  if(p.sex==="女性"){
+    // the logo cup: wide bowl, handle on the left, beans jumping out of the coffee
+    cup=`<path d="M50 114c-26-2-26 34 2 30" fill="none" ${L}/>
+      <path d="M44 100h112c0 42-22 68-56 68s-56-26-56-68z" fill="#fff" ${L}/>
+      <ellipse cx="100" cy="101" rx="50" ry="6" fill="${coffee}"/>
+      <g transform="translate(90 70) rotate(-30)"><ellipse rx="19" ry="28" fill="${bean}" ${L}/><path d="M2-25c-9 12 8 28 0 50" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/></g>
+      <g transform="translate(122 58) rotate(16)"><ellipse rx="15" ry="23" fill="${bean}" ${L}/><path d="M1-20c-7 9 6 24 0 40" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/></g>
+      <path d="M52 140c18 22 78 22 96 0" fill="none" stroke="${col}" stroke-width="7" stroke-linecap="round" opacity=".85"/>`;
+    fy=122;fx=104;top=40;
+  }else if(p.sex==="男性"){
+    // a cup with a pour-over dripper and paper filter sitting on it
+    cup=`<path d="M146 122c22 0 22 30 0 30" fill="none" ${L}/>
+      <path d="M56 104h92l-6 54c-1 9-8 14-17 14H79c-9 0-16-5-17-14z" fill="#fff" ${L}/>
+      <path d="M50 104h104" ${L}/>
+      <path d="M64 58h76l-14 42H78z" fill="${col}" ${L}/>
+      <path d="M58 58h88" ${L}/>
+      <path d="M70 58l6-12 6 12 6-12 6 12 6-12 6 12 6-12 6 12 6-12 6 12 6-12" fill="#fff" stroke="${ink}" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M78 74h48" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".7"/>`;
+    fy=134;fx=102;top=40;
+  }else{
+    cup=`<path d="M146 98c26 0 26 44 0 44" fill="none" ${L}/>
+      <rect x="56" y="78" width="90" height="92" rx="16" fill="#fff" ${L}/>
+      <path d="M64 86c8 5 66 5 74 0" fill="none" stroke="${coffee}" stroke-width="6" stroke-linecap="round"/>
+      <path d="M56 150h90" stroke="${col}" stroke-width="10"/>`;
+    fy=122;fx=101;top=60;
   }
-  const extra=p.sex==="女性"?`<g transform="translate(64 ${top-4})"><circle r="7" cx="0" cy="-8" fill="${acc}"/><circle r="7" cx="8" cy="0" fill="${acc}"/><circle r="7" cx="0" cy="8" fill="${acc}"/><circle r="7" cx="-8" cy="0" fill="${acc}"/><circle r="5" fill="#ffe28a"/></g>`
-    :p.sex==="男性"?`<g transform="translate(132 ${top-6}) rotate(20)"><path d="M0 0c-18-4-22-20-8-26c10 6 12 18 8 26z" fill="${acc}"/><path d="M0 0c4-10 8-16 14-20" stroke="${dark}" stroke-width="2" fill="none"/></g>`
-    :`<path transform="translate(134 ${top-10})" d="M0-12l3.5 7.5 8 1-6 5.5 1.5 8L0 6l-7 4 1.5-8-6-5.5 8-1z" fill="${acc}"/>`;
-  const eyes=happy?`<path d="M80 ${faceY}q6-8 12 0M108 ${faceY}q6-8 12 0" stroke="${dark}" stroke-width="4" fill="none" stroke-linecap="round"/>`
-    :`<circle cx="86" cy="${faceY-2}" r="5" fill="${dark}"/><circle cx="114" cy="${faceY-2}" r="5" fill="${dark}"/>`;
-  const mouth=open?`<path d="M92 ${faceY+12}q8 12 16 0z" fill="${dark}"/>`:`<path d="M90 ${faceY+12}q10 10 20 0" stroke="${dark}" stroke-width="4" fill="none" stroke-linecap="round"/>`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><circle cx="100" cy="100" r="100" fill="${bg}"/>${body}${extra}${eyes}${mouth}
-    <circle cx="74" cy="${faceY+12}" r="7" fill="#ff9aa8" opacity=".55"/><circle cx="126" cy="${faceY+12}" r="7" fill="#ff9aa8" opacity=".55"/></svg>`;
+  // face like the logo: dot eyes, a tiny nose, a little mouth (varies per phone)
+  const m=n%3, mouth=m===0?`<ellipse cx="${fx}" cy="${fy+20}" rx="5" ry="7" fill="none" stroke="${ink}" stroke-width="3.5"/>`
+    :m===1?`<path d="M${fx-9} ${fy+16}q9 10 18 0" fill="none" stroke="${ink}" stroke-width="3.5" stroke-linecap="round"/>`
+    :`<path d="M${fx-7} ${fy+16}q7 8 14 0z" fill="${ink}"/>`;
+  const face=`<circle cx="${fx-16}" cy="${fy}" r="4.5" fill="${ink}"/><circle cx="${fx+16}" cy="${fy}" r="4.5" fill="${ink}"/><circle cx="${fx}" cy="${fy+6}" r="2.2" fill="${ink}"/>${mouth}
+    <circle cx="${fx-28}" cy="${fy+12}" r="6" fill="${acc}" opacity=".35"/><circle cx="${fx+28}" cy="${fy+12}" r="6" fill="${acc}" opacity=".35"/>`;
+  // age group extra
+  const ex={"10代以下":`<path d="M40 70l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="${acc}"/><path d="M164 58l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="${acc}"/>`,
+    "20代":`<path d="M162 70c-6-8 6-12 0-22M174 76c-6-8 6-12 0-22" fill="none" stroke="${acc}" stroke-width="4" stroke-linecap="round"/>`,
+    "30代":`<path d="M30 176h140" stroke="${ink}" stroke-width="5" stroke-linecap="round"/><path d="M40 182h120" stroke="${col}" stroke-width="4" stroke-linecap="round" opacity=".6"/>`,
+    "40代":`<path d="M${fx-24} ${fy-12}h14M${fx+10} ${fy-12}h14" stroke="${ink}" stroke-width="3.5" stroke-linecap="round"/>`,
+    "50代":`<path d="M30 176h140" stroke="${ink}" stroke-width="5" stroke-linecap="round"/><path d="M150 172l20-26" stroke="${ink}" stroke-width="4" stroke-linecap="round"/><ellipse cx="172" cy="142" rx="6" ry="9" transform="rotate(38 172 142)" fill="#fff" ${L}/>`,
+    "60代以上":`<circle cx="${fx-16}" cy="${fy}" r="10" fill="none" stroke="${ink}" stroke-width="3"/><circle cx="${fx+16}" cy="${fy}" r="10" fill="none" stroke="${ink}" stroke-width="3"/><path d="M${fx-6} ${fy}h12" stroke="${ink}" stroke-width="3"/>`}[p.age]||"";
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><circle cx="100" cy="100" r="100" fill="${bg}"/>${cup}${face}${ex}</svg>`;
 }
 function avatarURL(){const p=S.progress.profile;return p&&p.age?"data:image/svg+xml;charset=utf-8,"+encodeURIComponent(avatarSVG(p,anonId())):""}
 let profDraft=null;
