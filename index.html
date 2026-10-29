@@ -475,7 +475,7 @@ async function makeImage(which){
   const blob=lastBlobs[which]=await new Promise(r=>c.toBlob(r,"image/png"));
   const url=URL.createObjectURL(blob);
   $("#img-box"+which).innerHTML=`<img class="preview" src="${url}" alt="コレクション画像のプレビュー">
-    ${window.__dl?`<button class="btn wide" id="save-img${which}">画像を保存する</button>`:`<p class="msg">この画面では保存ボタンが使えません。画像を長押し（右クリック）して保存してください。</p>`}`;
+    ${saveHTML(which,"画像")}`;
   $("#img-msg"+which).textContent="これが今のあなたのコレクションです。";$("#img-msg"+which).className="msg ok";
 }
 // One shop's page: logo, name, when it was stamped, stars, and everything the participant wrote
@@ -563,17 +563,29 @@ async function makeCert(n){
   g.fillStyle=leaf;g.font=`700 20px ${B}`;g.fillText("COFFEE STAMP RALLY",W/2,H-84);
   const blob=lastBlobs[n]=await new Promise(r=>c.toBlob(r,"image/png"));
   $("#img-box"+n).innerHTML=`<img class="preview" src="${URL.createObjectURL(blob)}" alt="認定証">
-    ${window.__dl?`<button class="btn wide" id="save-img${n}">認定証を保存する</button>`:`<p class="msg">この画面では保存ボタンが使えません。画像を長押し（右クリック）して保存してください。</p>`}`;
+    ${saveHTML(n,"認定証")}`;
   $("#img-msg"+n).textContent="おめでとうございます！あなたの認定証です。";$("#img-msg"+n).className="msg ok";
 }
 function line2(){return "#d8c9a8"}
+// Phones: the share sheet's 「画像を保存」 puts the image in the Photos app (a plain download lands in Files on iPhone).
+// Other browsers fall back to a normal download
+function canSharePhoto(){try{return !!(navigator.canShare&&navigator.canShare({files:[new File([new Blob(["x"],{type:"image/png"})],"x.png",{type:"image/png"})]}))}catch(e){return false}}
 async function saveImage(which){
-  const blob=lastBlobs[which];if(!blob||!window.__dl)return;
+  const blob=lastBlobs[which];if(!blob)return;
   const d=new Date(), m=$("#img-msg"+which);
-  try{await window.__dl.save({filename:`coffee-${which===1?"collection":which===2?"all-shops":which===3?"certificate-5":"certificate-all"}-${d.getMonth()+1}${String(d.getDate()).padStart(2,"0")}.png`,data:blob});
+  const filename=`coffee-${which===1?"collection":which===2?"all-shops":which===3?"certificate-5":"certificate-all"}-${d.getMonth()+1}${String(d.getDate()).padStart(2,"0")}.png`;
+  if(canSharePhoto()){
+    try{await navigator.share({files:[new File([blob],filename,{type:"image/png"})]});
+      m.textContent="保存できました。写真アプリを見てみてください。";m.className="msg ok";return}
+    catch(e){if(e&&e.name==="AbortError"){m.textContent="保存を取りやめました。もう一度押すとやり直せます。";m.className="msg";return}}
+  }
+  if(!window.__dl){m.textContent="画像を長押しして「写真に追加」を選んでください。";m.className="msg err";return}
+  try{await window.__dl.save({filename,data:blob});
     m.textContent="保存しました。";m.className="msg ok"}
-  catch(e){m.textContent=e&&e.code==="declined"?"保存を取りやめました。":"保存できませんでした。画像を長押しして保存してください。";m.className="msg err"}
+  catch(e){m.textContent=e&&e.code==="declined"?"保存を取りやめました。":"保存できませんでした。画像を長押しして「写真に追加」を選んでください。";m.className="msg err"}
 }
+function saveHTML(n,label){return `${canSharePhoto()||window.__dl?`<button class="btn wide" id="save-img${n}">${label}を写真に保存する</button>`:""}
+    <p class="msg" style="font-size:12px">${canSharePhoto()?"ボタンを押して出てくるメニューで「画像を保存」を選ぶと、写真アプリに入ります。":"保存できないときは、画像を長押しして「写真に追加」（または「画像を保存」）を選んでください。"}</p>`}
 
 /* ---------- organizer ---------- */
 const COLS=["shop","bean","roast","notes","message"];
