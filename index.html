@@ -336,17 +336,18 @@ function certHTML(n,title,lead){return `<div class="cert">
     </div>`}
 /* ---------- avatar: chosen age group, gender and area turn into a coffee character ---------- */
 const AGES=["10代以下","20代","30代","40代","50代","60代以上"], SEXES=["女性","男性","答えない"];
-const AREAS=["琴浦町","北栄町","湯梨浜町","三朝町","倉吉市","鳥取市","米子市","境港市","そのほかの県内","県外"];
-// Area sets the colours: [cup, background, accent]
-const AREA_COL={"琴浦町":["#c8553d","#fde8df","#2e6b5a"],"北栄町":["#e0a03a","#fdf1d8","#5b3a28"],"湯梨浜町":["#3f88c5","#e1effa","#c8553d"],"三朝町":["#8a5a9e","#f1e6f6","#e0a03a"],
-  "倉吉市":["#2e6b5a","#e0f1ea","#c8553d"],"鳥取市":["#d98c2b","#fbeedc","#3f88c5"],"米子市":["#4f7cac","#e4edf7","#e0a03a"],"境港市":["#2f8f9d","#ddf2f4","#c8553d"],
-  "そのほかの県内":["#7a8b3a","#eef2dc","#5b3a28"],"県外":["#5b3a28","#f1e8df","#e0a03a"]};
+const PREFS=["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県","海外"];
+// Region of each prefecture (by its index in PREFS) and the region's colours [cup, background, accent] with what they stand for
+function regionOf(pref){const i=PREFS.indexOf(pref);return i<0?"":i===0?"北海道":i<7?"東北":i<14?"関東":i<23?"中部":i<30?"関西":i<35?"中国":i<39?"四国":i<47?"九州・沖縄":"海外"}
+const REGION_COL={"北海道":["#4a90c2","#e6f1fa","#7fb8de","雪と空のブルー"],"東北":["#c8373d","#fbe5e3","#e8a33c","りんごのレッド"],"関東":["#6a4c93","#efe9f6","#d98c2b","江戸紫"],
+  "中部":["#3a6ea5","#e2ecf6","#e06c75","富士山とアルプスの青"],"関西":["#d9482b","#fde6dd","#c9a227","鳥居の朱色"],"中国":["#6b9e3a","#ecf4e1","#e0a03a","梨と大山のグリーン"],
+  "四国":["#ee8a1e","#fff0dc","#2e6b5a","みかんのオレンジ"],"九州・沖縄":["#1f9aa5","#dcf3f4","#f2b134","南の海のエメラルド"],"海外":["#5b3a28","#f1e8df","#e0a03a","コーヒー豆のブラウン"]};
 // Drawn in the まめかけ logo's style: white cup, dark hand-drawn outline, dot eyes.
 // 女性 = the logo's cup with coffee beans popping out; 男性 = a cup with a pour-over dripper on top; 答えない = a plain mug.
-// Area sets the colours, age group adds a small extra, and the anonymous id varies the face
+// The region of the chosen prefecture sets the colours, age group adds a small extra, and the anonymous id varies the face
 function avatarSVG(p,seed){
   if(!p||!p.age)return "";
-  const [col,bg,acc]=AREA_COL[p.area]||AREA_COL["県外"], ink="#2a201b", bean="#8a6f4e", coffee="#5a3a24";
+  const [col,bg,acc]=REGION_COL[regionOf(p.pref)]||REGION_COL["中国"], ink="#2a201b", bean="#8a6f4e", coffee="#5a3a24";
   let n=0;for(const ch of String(seed||""))n=(n*31+ch.charCodeAt(0))>>>0;
   const L=`stroke="${ink}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"`;
   let cup="", fy=128, fx=100, top=60;
@@ -394,13 +395,18 @@ function avatarSVG(p,seed){
 function avatarURL(){const p=S.progress.profile;return p&&p.age?"data:image/svg+xml;charset=utf-8,"+encodeURIComponent(avatarSVG(p,anonId())):""}
 let profDraft=null;
 function profileHTML(){
-  const d=profDraft||{...(S.progress.profile||{})}, svg=avatarSVG(d.age?d:{age:"20代",sex:d.sex||"答えない",area:d.area||"琴浦町"},anonId());
+  const d=profDraft||{...(S.progress.profile||{})}, ready=d.age&&d.sex&&d.pref, reg=regionOf(d.pref);
+  const svg=avatarSVG({age:d.age||"20代",sex:d.sex||"答えない",pref:d.pref||"鳥取県"},anonId());
   const group=(label,key,list)=>`<div class="field"><span>${label}</span><div class="chips">${list.map(v=>`<button type="button" class="chip ${d[key]===v?"on":""}" data-prof="${key}" data-v="${v}">${v}</button>`).join("")}</div></div>`;
   return `<div class="eyebrow">MY AVATAR</div><h3>あなたのアバターを作ろう</h3>
-    <div class="avatar-pre${d.age?"":" ghost"}">${svg}</div>
-    <p class="note">年代・性別・お住まいのエリアを選ぶと、あなただけのコーヒーキャラができます。台紙と認定証に載ります。答えは匿名で集計し、今後のイベントづくりに使います。</p>
-    ${group("年代","age",AGES)}${group("性別","sex",SEXES)}${group("お住まいのエリア","area",AREAS)}
-    <div class="row"><button class="btn" id="prof-save" ${d.age&&d.sex&&d.area?"":"disabled"}>このアバターにする</button><button class="btn ghost" id="prof-skip">${S.progress.profile?"やめる":"あとで"}</button></div>`;
+    <div class="avatar-pre${ready?"":" ghost"}">${svg}</div>
+    ${reg?`<p class="msg" style="text-align:center;margin:-6px 0 0">${esc(reg==="海外"?"海外":reg+"地方")}カラー：${REGION_COL[reg][3]}</p>`:""}
+    <p class="note">年代・性別・お住まいを選ぶと、あなただけのコーヒーキャラができます。色はお住まいの地方で変わります。台紙と認定証に載ります。答えは匿名で集計し、今後のイベントづくりに使います。</p>
+    ${group("年代","age",AGES)}${group("性別","sex",SEXES)}
+    <div class="grid2"><label class="field"><span>都道府県</span><select id="prof-pref"><option value="">選んでください</option>${PREFS.map(v=>`<option ${d.pref===v?"selected":""}>${v}</option>`).join("")}</select></label>
+    <label class="field"><span>市区町村（任意）</span><input id="prof-city" type="text" maxlength="20" placeholder="例：琴浦町" value="${esc(d.city||"")}"></label></div>
+    <div class="row"><button class="btn" id="prof-save" ${ready?"":"disabled"}>このアバターにする</button>
+      ${S.progress.profile?`<button class="btn ghost" id="prof-cancel">やめる</button><button class="btn ghost" id="prof-none">アバターを使わない</button>`:`<button class="btn ghost" id="prof-none">アバターを作らない</button>`}</div>`;
 }
 function renderProfile(){
   const el=$("#play-profile");if(!el)return;
@@ -414,7 +420,7 @@ function renderPlay(){
   const empty=`<button class="slot empty" data-scan aria-label="押すとQRを読み込みます"><div class="ph todo">？</div><b>ここを押して</b><small>QRを読み込む</small></button>`;
   $("#play-card").innerHTML=`
     <div class="head"><div class="eyebrow">COFFEE STAMP RALLY ・ 1枚目</div><h2>${esc(S.cfg.title)}</h2><p>${esc(S.cfg.date)} ／ ${esc(S.cfg.place)}</p></div>
-    ${S.progress.profile?`<div class="me"><img src="${avatarURL()}" alt="あなたのアバター"><span>あなたのアバター<small>${esc(S.progress.profile.age)}・${esc(S.progress.profile.area)}</small></span><button class="btn ghost" id="prof-edit">変える</button></div>`
+    ${S.progress.profile?`<div class="me"><img src="${avatarURL()}" alt="あなたのアバター"><span>あなたのアバター<small>${esc(S.progress.profile.age)}・${esc(S.progress.profile.pref)}${esc(S.progress.profile.city||"")}</small></span><button class="btn ghost" id="prof-edit">変える</button></div>`
       :S.progress.profileSkip?`<div class="me"><span class="me-add">？</span><span>アバターはまだありません</span><button class="btn ghost" id="prof-edit">作る</button></div>`:""}
     ${demo?`<p class="note">コーヒーショップがまだ台紙に載っていないので、<span class="tag demo">見本</span>の5店で試せます。各店のQRは「主催者」タブに出ています。</p>`:""}
     ${total>GOAL?`<p class="note">好きなお店を${GOAL}店舗回って飲み比べ。${GOAL}店舗そろうと「飲み比べ達成認定証」がもらえて、2枚目の「全店制覇」台紙が開きます。</p>`:""}
@@ -471,10 +477,14 @@ function viewPlay(){
 $("#view-play").addEventListener("click",async e=>{
   const t=e.target;
   const o=t.closest("[data-open]");
-  if(t.dataset.prof){profDraft=profDraft||{...(S.progress.profile||{})};profDraft[t.dataset.prof]=t.dataset.v;renderProfile();return}
-  if(t.id==="prof-save"&&profDraft){S.progress.profile={age:profDraft.age,sex:profDraft.sex,area:profDraft.area};profDraft=null;await saveProgress();
-    track("profile",null,false,{what:`${S.progress.profile.age}・${S.progress.profile.sex}・${S.progress.profile.area}`});renderProfile();renderPlay();return}
-  if(t.id==="prof-skip"){if(!S.progress.profile){S.progress.profileSkip=true;await saveProgress()}profDraft=null;renderProfile();renderPlay();return}
+  if(t.dataset.prof){profDraft=profDraft||{...(S.progress.profile||{})};profDraft[t.dataset.prof]=t.dataset.v;const c=$("#prof-city")?.value;if(c!=null)profDraft.city=c;renderProfile();return}
+  if(t.id==="prof-save"&&profDraft){const city=($("#prof-city")?.value||"").replace(/[・\s]/g,"").slice(0,20);
+    S.progress.profile={age:profDraft.age,sex:profDraft.sex,pref:profDraft.pref,city};profDraft=null;await saveProgress();
+    track("profile",null,false,{what:`${S.progress.profile.age}・${S.progress.profile.sex}・${S.progress.profile.pref}・${city}`});renderProfile();renderPlay();return}
+  if(t.id==="prof-cancel"){profDraft=null;renderProfile();return}
+  // Choosing not to have an avatar is kept, and a later 「作る」 can still make one
+  if(t.id==="prof-none"){const had=!!S.progress.profile;delete S.progress.profile;S.progress.profileSkip=true;profDraft=null;await saveProgress();
+    if(had)track("profile",null,false,{what:"なし"});renderProfile();renderPlay();return}
   if(t.id==="prof-edit"){profDraft={...(S.progress.profile||{})};renderProfile();$("#play-profile").scrollIntoView({behavior:"smooth",block:"start"});return}
   if(o){openId=o.dataset.open;{const s=shops().all.find(x=>x.id===openId);if(s)track("view",s,"view-"+s.code)}renderSheet();$("#play-sheet").scrollIntoView({behavior:"smooth",block:"nearest"});return}
   if(t.id==="close"){openId=null;renderSheet();return}
@@ -497,6 +507,8 @@ $("#view-play").addEventListener("click",async e=>{
 
 // A photo for a shop's notes: shrunk on the phone so a dozen fit in browser storage
 $("#view-play").addEventListener("change",async e=>{
+  if(e.target.id==="prof-pref"){profDraft=profDraft||{...(S.progress.profile||{})};profDraft.pref=e.target.value;
+    const c=$("#prof-city")?.value;if(c!=null)profDraft.city=c;renderProfile();return}
   if(!/^n-photo/.test(e.target.id)||!e.target.files?.[0]||!openId)return;
   const st=S.progress.stamps[openId], msg=$("#photo-msg");msg.textContent="読み込み中…";msg.className="msg";
   try{
@@ -978,6 +990,8 @@ $("#copy-link").addEventListener("click",async()=>{
 /* ---------- boot ---------- */
 lload();
 {const pp=pload();if(pp)S.progress=mergeProgress(S.progress,pp)}
+// Avatars made before prefectures were asked are made again
+if(S.progress.profile&&!S.progress.profile.pref)delete S.progress.profile;
 pendingCode=parseHash();
 $("#tab-admin").hidden=location.hash!=="#admin";
 if(location.hash!=="#admin"){trackOpen();pageShown();
