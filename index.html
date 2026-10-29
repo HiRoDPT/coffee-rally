@@ -318,7 +318,7 @@ function renderPlay(){
   const empty=`<button class="slot empty" data-scan aria-label="押すとQRを読み込みます"><div class="ph todo">？</div><b>ここを押して</b><small>QRを読み込む</small></button>`;
   $("#play-card").innerHTML=`
     <div class="head"><div class="eyebrow">COFFEE STAMP RALLY ・ 1枚目</div><h2>${esc(S.cfg.title)}</h2><p>${esc(S.cfg.date)} ／ ${esc(S.cfg.place)}</p></div>
-    ${demo?`<p class="note">出店者がまだ台紙に載っていないので、<span class="tag demo">見本</span>の5店で試せます。各店のQRは「主催者」タブに出ています。</p>`:""}
+    ${demo?`<p class="note">コーヒーショップがまだ台紙に載っていないので、<span class="tag demo">見本</span>の5店で試せます。各店のQRは「主催者」タブに出ています。</p>`:""}
     ${total>GOAL?`<p class="note">好きなお店を${GOAL}店舗回って飲み比べ。${GOAL}店舗そろうと「飲み比べ達成認定証」がもらえて、2枚目の「全店制覇」台紙が開きます。</p>`:""}
     <div class="meter"><div class="bar"><i style="width:${k1/GOAL*100}%"></i></div>${k1} / ${GOAL} 杯</div>
     <p class="msg" id="save-note" style="font-size:12px"></p>
@@ -547,7 +547,7 @@ async function makeCert(n){
   const ink="#2a201b",roast="#5b3a28",stamp="#9a3a1c",leaf="#2e6b5a",muted="#7a6c62",gold="#b08a3e";
   // Canvas only gets a web font that has been loaded for the exact characters drawn
   const txt=`全店制覇飲み比べ達成認定証さまあなた${S.progress.certName||""}${GOAL}まめかけ認定`;
-  try{await Promise.all(["900","700","500"].map(w=>document.fonts.load(`${w} 40px "Noto Sans JP"`,txt+S.cfg.title+S.cfg.place+"制覇日達成日番号舗のコーヒーを飲み歩き見事全店制覇されましたここにその証として出店したで実行委員会舗")));await document.fonts.ready}catch(e){}
+  try{await Promise.all(["900","700","500"].map(w=>document.fonts.load(`${w} 40px "Noto Sans JP"`,txt+S.cfg.title+S.cfg.place+"制覇日達成日番号舗のコーヒーを飲み歩き見事全店制覇されましたここにその証としてでの実行委員会舗コーヒーショップ")));await document.fonts.ready}catch(e){}
   const B='"Noto Sans JP","Hiragino Sans",sans-serif';
   g.fillStyle="#fbf6ec";g.fillRect(0,0,W,H);
   g.strokeStyle=gold;g.lineWidth=10;g.strokeRect(36,36,W-72,H-72);
@@ -559,7 +559,7 @@ async function makeCert(n){
   g.fillStyle=ink;g.font=`900 60px ${B}`;fitText(g,name?`${name} さま`:"あなた さま",W/2,385,W-240);
   g.strokeStyle=line2();g.lineWidth=2;g.beginPath();g.moveTo(220,410);g.lineTo(W-220,410);g.stroke();
   g.fillStyle=ink;g.font=`500 30px ${B}`;
-  (full?[`あなたは ${S.cfg.title} に出店した`,`全${all.length}店舗のコーヒーを飲み歩き`,"見事全店制覇を達成されました","ここにその証として認定します"]
+  (full?[`あなたは ${S.cfg.title} の`,`コーヒーショップ全${all.length}店舗を飲み歩き`,"見事全店制覇を達成されました","ここにその証として認定します"]
     :[`あなたは ${S.cfg.title} で`,`${GOAL}店舗のコーヒーを飲み比べ`,"見事飲み比べを達成されました","ここにその証として認定します"]).forEach((l,i)=>fitText(g,l,W/2,480+i*50,W-200));
   // every shop's logo, 6 per row
   const cols=full?6:5, R=full?58:72, gap=full?150:180, top=full?760:790;
@@ -631,7 +631,7 @@ async function certBack(all,B,full){
     g.fillStyle=roast;g.font=`700 22px ${B}`;fitText(g,all[i].shop.replace(/^見本：/,""),x,yy+R+30,gapX-16);
   }
   // Date, place, shop count and organizer along the bottom
-  g.fillStyle=muted;g.font=`500 24px ${B}`;fitText(g,`${S.cfg.date} ／ ${S.cfg.place} ／ 出店${all.length}店舗`,W/2,H-108,W-200);
+  g.fillStyle=muted;g.font=`500 24px ${B}`;fitText(g,`${S.cfg.date} ／ ${S.cfg.place} ／ コーヒーショップ${all.length}店舗`,W/2,H-108,W-200);
   g.fillStyle=roast;g.font=`700 28px ${B}`;fitText(g,"Coffee Festaまめかけ実行委員会",W/2,H-72,W-200);
   return c;
 }
@@ -861,7 +861,7 @@ show("play");
   if(!S.canEdit&&tab==="admin")show("play");
   progressRef=db.doc(`data/users/${uid}/progress`);
   db.doc("config/event").onSnapshot(s=>{S.cfg={...DEFAULT_CFG,...(s.exists?s.data():{})};loaded.cfg=true;onData("cfg");tryArrive()},e=>flash("イベント情報を読み込めませんでした","err"));
-  db.collection("vendors").onSnapshot(q=>{const v={};q.docs.forEach(d=>v[d.id]=d.data());S.vendors=v;loaded.vendors=true;onData("vendors");tryArrive()},e=>flash("出店情報を読み込めませんでした","err"));
+  db.collection("vendors").onSnapshot(q=>{const v={};q.docs.forEach(d=>v[d.id]=d.data());S.vendors=v;loaded.vendors=true;onData("vendors");tryArrive()},e=>flash("コーヒーショップの情報を読み込めませんでした","err"));
   let firstProgress=true;
   progressRef.onSnapshot(s=>{
     const remote=s.exists?{stamps:{},...s.data()}:{stamps:{}};
