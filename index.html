@@ -249,6 +249,13 @@ function trackNote(id,delay){
   noteTimer=setTimeout(()=>{const s=shops().all.find(x=>x.id===id), st=S.progress.stamps[id];if(!s||!st)return;
     track("note",s,false,{rating:st.rating||0,bean:st.bean||"",roast:st.roast||"",tastes:(st.tastes||[]).join("・"),memo:st.memo||"",photo:st.photo?1:0})},delay||0);
 }
+// Which image a button made or saved, as shown in the organizer's sheet
+const IMG_LABEL=["","台紙1枚目","台紙2枚目","飲み比べ達成認定証","全店制覇認定証"];
+// Time the page was on screen: one running total per phone, updated each time the phone leaves the page
+const TKEY="coffee-rally-time";let shownAt=null;
+function pageShown(){if(shownAt!==null||document.visibilityState==="hidden")return;shownAt=Date.now();const t=lsGet(TKEY,{sec:0,visits:0});t.visits++;lsSet(TKEY,t)}
+function pageHidden(){if(shownAt===null)return;const t=lsGet(TKEY,{sec:0,visits:0});t.sec+=Math.round((Date.now()-shownAt)/1000);shownAt=null;lsSet(TKEY,t);
+  const m=Math.floor(t.sec/60),sec=t.sec%60;track("time",null,false,{what:`合計${m}分${sec}秒（${t.visits}回）`,sec:t.sec,visits:t.visits})}
 function trackMilestones(){const {list,all}=shops();if(list.length>=GOAL)track("goal5",null,true);if(all.length&&list.length>=all.length)track("complete",null,true)}
 
 const PKEY="coffee-rally-progress-v1";
@@ -499,7 +506,7 @@ async function makeImage(which){
     const from=gi*GOAL+1;
     out.push({blob:await toBlob(await notesCanvas(groups[gi],`${from}〜${from+groups[gi].length-1}店舗目`,W,paper,colors)),name:`coffee-${stem}-${day}-${out.length+1}.png`});
   }
-  lastBlobs[which]=out;
+  lastBlobs[which]=out;track("image",null,false,{what:IMG_LABEL[which]});
   $("#img-box"+which).innerHTML=`${out.map((o,i)=>`<img class="preview" src="${URL.createObjectURL(o.blob)}" alt="${i?"メモの画像":"台紙の画像"}">`).join("")}
     ${saveHTML(which,out.length>1?`${out.length}枚の画像`:"画像")}`;
   $("#img-msg"+which).textContent=out.length>1?`台紙とメモの${out.length}枚に分かれています。`:"これが今のあなたのコレクションです。";$("#img-msg"+which).className="msg ok";
@@ -612,6 +619,7 @@ async function makeCert(n){
   g.fillStyle=leaf;g.font=`700 20px ${B}`;g.fillText("COFFEE STAMP RALLY",W/2,H-84);
   const dd=new Date(), stem=`coffee-certificate-${full?"all":"5"}-${dd.getMonth()+1}${String(dd.getDate()).padStart(2,"0")}`;
   lastBlobs[n]=[{blob:await toBlob(c),name:`${stem}-1.png`},{blob:await toBlob(await certBack(sh.all,B,full)),name:`${stem}-2.png`}];
+  track("image",null,false,{what:IMG_LABEL[n]});
   $("#img-box"+n).innerHTML=`${lastBlobs[n].map((o,i)=>`<img class="preview" src="${URL.createObjectURL(o.blob)}" alt="${i?"認定証の裏面":"認定証"}">`).join("")}
     ${saveHTML(n,"認定証（表・裏）")}`;
   $("#img-msg"+n).textContent="おめでとうございます！あなたの認定証です。";$("#img-msg"+n).className="msg ok";
@@ -668,12 +676,12 @@ async function saveImage(which){
   const m=$("#img-msg"+which), files=items.map(o=>new File([o.blob],o.name,{type:"image/png"}));
   if(canSharePhoto()){
     try{await navigator.share({files});
-      m.textContent="保存できました。写真アプリを見てみてください。";m.className="msg ok";return}
+      m.textContent="保存できました。写真アプリを見てみてください。";m.className="msg ok";track("save",null,false,{what:IMG_LABEL[which]});return}
     catch(e){if(e&&e.name==="AbortError"){m.textContent="保存を取りやめました。もう一度押すとやり直せます。";m.className="msg";return}}
   }
   if(!window.__dl){m.textContent="画像を長押しして「写真に追加」を選んでください。";m.className="msg err";return}
   try{for(const o of items)await window.__dl.save({filename:o.name,data:o.blob});
-    m.textContent=IS_ANDROID?"保存しました。ギャラリー（フォト）の「Download」に入っています。":"保存しました。";m.className="msg ok"}
+    m.textContent=IS_ANDROID?"保存しました。ギャラリー（フォト）の「Download」に入っています。":"保存しました。";m.className="msg ok";track("save",null,false,{what:IMG_LABEL[which]})}
   catch(e){m.textContent=e&&e.code==="declined"?"保存を取りやめました。":"保存できませんでした。画像を長押しして「写真に追加」を選んでください。";m.className="msg err"}
 }
 function saveHTML(n,label){return `${canSharePhoto()||window.__dl?`<button class="btn wide" id="save-img${n}">${label}を写真に保存する</button>`:""}
@@ -869,7 +877,10 @@ lload();
 {const pp=pload();if(pp)S.progress=mergeProgress(S.progress,pp)}
 pendingCode=parseHash();
 $("#tab-admin").hidden=location.hash!=="#admin";
-if(location.hash!=="#admin")track("open",null,true);flush();
+if(location.hash!=="#admin"){track("open",null,true);pageShown();
+  document.addEventListener("visibilitychange",()=>document.visibilityState==="hidden"?pageHidden():pageShown());
+  window.addEventListener("pagehide",pageHidden)}
+flush();
 show("play");
 (async()=>{
   const [dbNs,user,dl]=await Promise.all(["db","user","downloads"].map(n=>(window.claude?.use?window.claude.use(n):Promise.resolve(null)).catch(()=>null)));
