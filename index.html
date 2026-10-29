@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>コーヒー飲み比べラリー</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap">
 <style>
 /* Layout: one phone-width column; three tabs (participant card / vendor application / organizer) over a shared store */
 :root{
   --bg:#f2efeb; --paper:#ffffff; --ink:#2a201b; --muted:#6e625a; --line:#ddd5cd;
   --roast:#5b3a28; --leaf:#2e6b5a; --stamp:#9a3a1c; --soft:#e9e3dc;
-  --display:"Zen Maru Gothic","Hiragino Maru Gothic ProN",system-ui,sans-serif;
+  --display:"Noto Sans JP","Hiragino Sans",system-ui,sans-serif;
   --body:"Noto Sans JP","Hiragino Sans",system-ui,sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
@@ -202,7 +202,7 @@ function genLogo(name){
   g.fillStyle=hues[h%hues.length];g.fillRect(0,0,240,240);
   g.strokeStyle="rgba(255,255,255,.55)";g.lineWidth=6;g.beginPath();g.arc(120,120,96,0,Math.PI*2);g.stroke();
   const label=name.replace(/^見本：/,"").replace(/(珈琲|コーヒー|coffee|焙煎所|喫茶|店)/gi,"").trim().slice(0,2)||name.slice(0,2);
-  g.fillStyle="#fff";g.textAlign="center";g.textBaseline="middle";g.font='900 72px "Zen Maru Gothic",sans-serif';g.fillText(label,120,112);
+  g.fillStyle="#fff";g.textAlign="center";g.textBaseline="middle";g.font='900 72px "Noto Sans JP",sans-serif';g.fillText(label,120,112);
   g.font='700 18px "Noto Sans JP",sans-serif';g.fillText("COFFEE",120,170);
   return _logoCache[name]=c.toDataURL("image/png");
 }
@@ -746,13 +746,19 @@ const lastBlobs={};
 function loadImg(src){return new Promise(r=>{if(!src)return r(null);const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src})}
 function cssVar(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
 // which=1: the 5-shop card; which=2: the 全店制覇 card. The overview (1350px) is followed by one tasting-note page per collected shop
+// Canvas only uses a web font once it has been loaded for the exact characters drawn, otherwise the phone's own font shows.
+// Load Noto Sans JP for every character on the page, in the script and in this phone's records
+async function loadCanvasFont(extra){
+  const chars=[...new Set(document.documentElement.outerHTML+JSON.stringify(S.progress)+JSON.stringify(shops().all)+JSON.stringify(S.cfg)+(extra||""))].filter(c=>c.charCodeAt(0)>127).join("");
+  try{await Promise.all(["400","500","700","900"].map(w=>document.fonts.load(`${w} 40px "Noto Sans JP"`,chars+"0123456789ABC")));await document.fonts.ready}catch(e){}
+}
 async function makeImage(which){
-  try{await document.fonts.ready}catch(e){}
+  await loadCanvasFont();
   const sh=shops(), all=sh.all, list=which===1?sh.list.slice(0,GOAL):sh.list;
   const W=1080, TOP=1350, H=TOP, c=document.createElement("canvas");c.width=W;c.height=H;
   const g=c.getContext("2d");
   const ink="#2a201b",roast="#5b3a28",stamp="#9a3a1c",leaf="#2e6b5a",muted="#7a6c62",paper="#faf7f3",line="#e2d9cf";
-  const D='"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif', B='"Noto Sans JP","Hiragino Sans",sans-serif';
+  const D='"Noto Sans JP","Hiragino Sans",sans-serif', B='"Noto Sans JP","Hiragino Sans",sans-serif';
   g.fillStyle=paper;g.fillRect(0,0,W,H);
   g.strokeStyle=line;g.lineWidth=4;g.strokeRect(40,40,W-80,TOP-80);
   g.textAlign="center";g.fillStyle=leaf;g.font=`700 26px ${B}`;g.fillText(which===1?"MY COFFEE COLLECTION":"ALL SHOPS CHALLENGE",W/2,130);
@@ -882,9 +888,7 @@ async function makeCert(n){
   const sh=shops(), full=n===4, all=full?sh.all:sh.list.slice(0,GOAL), W=1080, H=1350, c=document.createElement("canvas");c.width=W;c.height=H;
   const g=c.getContext("2d");
   const ink="#2a201b",roast="#5b3a28",stamp="#9a3a1c",leaf="#2e6b5a",muted="#7a6c62",gold="#b08a3e";
-  // Canvas only gets a web font that has been loaded for the exact characters drawn
-  const txt=`全店制覇飲み比べ達成認定証さまあなた${S.progress.certName||""}${GOAL}まめかけ認定`;
-  try{await Promise.all(["900","700","500"].map(w=>document.fonts.load(`${w} 40px "Noto Sans JP"`,txt+S.cfg.title+S.cfg.place+"制覇日達成日番号舗のコーヒーを飲み歩き見事全店制覇されましたここにその証としてでの実行委員会舗コーヒーショップ")));await document.fonts.ready}catch(e){}
+  await loadCanvasFont();
   const B='"Noto Sans JP","Hiragino Sans",sans-serif';
   g.fillStyle="#fbf6ec";g.fillRect(0,0,W,H);
   g.strokeStyle=gold;g.lineWidth=10;g.strokeRect(36,36,W-72,H-72);
@@ -1050,9 +1054,10 @@ function renderQRs(){
 }
 async function qrCard(s){
   const src=$(`[data-qr="${s.id}"] canvas`);if(!src)return null;
+  await loadCanvasFont();
   const c=document.createElement("canvas");c.width=800;c.height=1000;const g=c.getContext("2d");
   g.fillStyle="#fff";g.fillRect(0,0,800,1000);g.textAlign="center";
-  g.fillStyle="#5b3a28";g.font='900 46px "Zen Maru Gothic",sans-serif';fitText(g,S.cfg.title,400,100,720);
+  g.fillStyle="#5b3a28";g.font='900 46px "Noto Sans JP",sans-serif';fitText(g,S.cfg.title,400,100,720);
   g.fillStyle="#2a201b";g.font='700 40px "Noto Sans JP",sans-serif';fitText(g,s.shop.replace(/^見本：/,""),400,170,720);
   g.imageSmoothingEnabled=false;g.drawImage(src,160,220,480,480);
   g.fillStyle="#9a3a1c";g.font='700 34px "Noto Sans JP",sans-serif';g.fillText("スマホのカメラで読み取ってスタンプGET",400,790);
