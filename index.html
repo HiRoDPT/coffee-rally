@@ -222,11 +222,11 @@ const AKEY="coffee-rally-anon", QKEY="coffee-rally-outbox", FKEY="coffee-rally-s
 function lsGet(k,d){try{return JSON.parse(localStorage.getItem(k)||"null")??d}catch(e){return d}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 function anonId(){let id=lsGet(AKEY,"");if(!id){id=Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-6);lsSet(AKEY,id)}return id}
-// once=true records the event a single time per phone (open, goal5, complete)
+// once=true records the event a single time per phone (goal5, complete); a string once is its own key (open once a day, a memo's first view)
 function track(type,s,once,extra){
   if(!TRACK_URL)return;
-  const sent=lsGet(FKEY,{});if(once&&sent[type])return;
-  if(once){sent[type]=1;lsSet(FKEY,sent)}
+  const sent=lsGet(FKEY,{}), key=typeof once==="string"?once:type;if(once&&sent[key])return;
+  if(once){sent[key]=1;lsSet(FKEY,sent)}
   const q=lsGet(QKEY,[]);q.push({id:anonId(),type,code:s?.code||"",shop:s?.shop||"",t:Date.now(),...(extra||{})});lsSet(QKEY,q.slice(-200));
   flush();
 }
@@ -256,6 +256,14 @@ const TKEY="coffee-rally-time";let shownAt=null;
 function pageShown(){if(shownAt!==null||document.visibilityState==="hidden")return;shownAt=Date.now();const t=lsGet(TKEY,{sec:0,visits:0});t.visits++;lsSet(TKEY,t)}
 function pageHidden(){if(shownAt===null)return;const t=lsGet(TKEY,{sec:0,visits:0});t.sec+=Math.round((Date.now()-shownAt)/1000);shownAt=null;lsSet(TKEY,t);
   const m=Math.floor(t.sec/60),sec=t.sec%60;track("time",null,false,{what:`合計${m}分${sec}秒（${t.visits}回）`,sec:t.sec,visits:t.visits})}
+// Where the visitor came from and which phone, sent with the day's first open
+const ARRIVED_BY=(()=>{const h=location.hash, r=document.referrer||"", q=new URLSearchParams(location.search).get("src");
+  if(/^#q-/.test(h))return "お店のQR";if(q==="poster")return "入口ポスター";
+  if(/instagram/i.test(r+navigator.userAgent))return "Instagram";if(/(t\.co|twitter|x\.com)/i.test(r))return "X";if(/facebook|FBAN|FBAV/i.test(r+navigator.userAgent))return "Facebook";if(/line\.me|Line\//i.test(r+navigator.userAgent))return "LINE";
+  if(r&&!r.includes(location.host))return "ほかのサイト";return "直接・QR"})();
+const DEVICE=/iPhone|iPad|iPod/i.test(navigator.userAgent)?"iPhone":/Android/i.test(navigator.userAgent)?"Android":"その他";
+// Once a day, so a second day's visit shows up as its own open
+function trackOpen(){const d=new Date();track("open",null,`open-${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`,{what:`${ARRIVED_BY}・${DEVICE}`})}
 function trackMilestones(){const {list,all}=shops();if(list.length>=GOAL)track("goal5",null,true);if(all.length&&list.length>=all.length)track("complete",null,true)}
 
 const PKEY="coffee-rally-progress-v1";
@@ -278,7 +286,7 @@ function renderSaveNote(){
   const el=$("#save-note");if(!el)return;
   if(S.remote&&S.cloudOK){el.textContent="✓ 記録はあなたのアカウントに保存されています。画面やスマホを閉じても、あとで開き直せば残っています。";el.className="msg ok"}
   else if(S.remote){el.textContent="記録はこのスマホにだけ保存されています（アカウントへの保存が許可されていません）。同じブラウザで開き直せば残っています。";el.className="msg"}
-  else{el.textContent="アカウント登録なしで、記録はこのスマホに保存されます。画面を閉じても、同じブラウザで開けば残っています（プライベートモードでは残りません）。"+(TRACK_URL?"お店の来店とメモをスタンプラリーで集計中です（匿名）。":"");el.className="msg"}
+  else{el.textContent="アカウント登録なしで、記録はこのスマホに保存されます。画面を閉じても、同じブラウザで開けば残っています（プライベートモードでは残りません）。"+(TRACK_URL?"お店の来店やメモ、サイトの使われ方を匿名で集計し、今後のイベントづくりに使います（名前や連絡先はいただきません）。":"");el.className="msg"}
 }
 
 /* ---------- derived ---------- */
@@ -382,7 +390,7 @@ function viewPlay(){
 $("#view-play").addEventListener("click",async e=>{
   const t=e.target;
   const o=t.closest("[data-open]");
-  if(o){openId=o.dataset.open;renderSheet();$("#play-sheet").scrollIntoView({behavior:"smooth",block:"nearest"});return}
+  if(o){openId=o.dataset.open;{const s=shops().all.find(x=>x.id===openId);if(s)track("view",s,"view-"+s.code)}renderSheet();$("#play-sheet").scrollIntoView({behavior:"smooth",block:"nearest"});return}
   if(t.id==="close"){openId=null;renderSheet();return}
   // Two taps so a stray tap doesn't wipe a stamp and its notes
   if(t.id==="unstamp"){
@@ -827,8 +835,8 @@ let scanStream=null, scanTimer=null;
 const scanCanvas=document.createElement("canvas"), scanCtx=scanCanvas.getContext("2d",{willReadFrequently:true});
 function handleScanned(text){
   const m=String(text).match(/#q-([A-Za-z0-9]+)(?:-([0-9a-fA-F]+))?/);
-  if(!m){$("#scan-msg").textContent="このQRコードはスタンプ用ではないようです。お店のQRコードを写してください。";return false}
-  closeScanner();
+  if(!m){if(!scanBadQR){scanBadQR=true;trackScanFail("スタンプ用でないQR")}$("#scan-msg").textContent="このQRコードはスタンプ用ではないようです。お店のQRコードを写してください。";return false}
+  scanOk=true;closeScanner();
   pendingCode={code:m[1].toUpperCase(),name:m[2]?unhexName(m[2]).slice(0,30):""};tryArrive();
   return true;
 }
@@ -839,8 +847,11 @@ function decodeFrom(source,w,h){
   const r=window.jsQR&&jsQR(d.data,d.width,d.height,{inversionAttempts:"dontInvert"});
   return r&&r.data;
 }
+// Scan troubles for the organizer: no camera, a non-stamp QR, an unreadable photo, or closing without a stamp
+let scanOk=false, scanBadQR=false, scanLogged=false;
+function trackScanFail(why){scanLogged=true;track("scanfail",null,false,{what:why})}
 async function openScanner(){
-  $("#scanner").hidden=false;$("#scan-msg").textContent="カメラの使用を許可してください。";
+  scanOk=false;scanBadQR=false;scanLogged=false;$("#scanner").hidden=false;$("#scan-msg").textContent="カメラの使用を許可してください。";
   try{
     scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false});
     const v=$("#scan-video");v.srcObject=scanStream;await v.play();
@@ -850,17 +861,17 @@ async function openScanner(){
       if(v.readyState>=2){const t=decodeFrom(v,v.videoWidth,v.videoHeight);if(t&&handleScanned(t))return}
       scanTimer=setTimeout(tick,200);
     };tick();
-  }catch(e){$("#scan-msg").textContent="カメラが使えませんでした。「写真から読み込む」でQRコードを撮影してください。"}
+  }catch(e){trackScanFail("カメラが使えない");$("#scan-msg").textContent="カメラが使えませんでした。「写真から読み込む」でQRコードを撮影してください。"}
 }
 function closeScanner(){
   clearTimeout(scanTimer);if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null}
   $("#scan-video").srcObject=null;$("#scanner").hidden=true;
 }
-$("#scan-close").addEventListener("click",closeScanner);
+$("#scan-close").addEventListener("click",()=>{if(!scanOk&&!scanLogged)trackScanFail("読み取れず閉じた");closeScanner()});
 $("#scan-file").addEventListener("change",e=>{
   const f=e.target.files[0];if(!f)return;const img=new Image();
   img.onload=()=>{const t=decodeFrom(img,img.naturalWidth,img.naturalHeight);URL.revokeObjectURL(img.src);
-    if(!t)$("#scan-msg").textContent="QRコードが見つかりませんでした。QRコードが大きく写るように撮り直してください。";else handleScanned(t)};
+    if(!t){trackScanFail("写真から読めず");$("#scan-msg").textContent="QRコードが見つかりませんでした。QRコードが大きく写るように撮り直してください。"}else handleScanned(t)};
   img.src=URL.createObjectURL(f);e.target.value="";
 });
 document.addEventListener("click",e=>{if(e.target.id==="scan-open"||e.target.closest("[data-scan]"))openScanner()});
@@ -878,7 +889,7 @@ lload();
 {const pp=pload();if(pp)S.progress=mergeProgress(S.progress,pp)}
 pendingCode=parseHash();
 $("#tab-admin").hidden=location.hash!=="#admin";
-if(location.hash!=="#admin"){track("open",null,true);pageShown();
+if(location.hash!=="#admin"){trackOpen();pageShown();
   document.addEventListener("visibilitychange",()=>document.visibilityState==="hidden"?pageHidden():pageShown());
   window.addEventListener("pagehide",pageHidden)}
 flush();
