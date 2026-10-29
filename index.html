@@ -329,7 +329,8 @@ function slotHTML(s){
   return `<button class="slot ${st?"got":""}" ${st?`data-open="${s.id}"`:"data-scan"} aria-label="${esc(s.shop)}${st?"（飲んだ）":"：押すとQRを読み込みます"}">
         ${st?`<img class="ph logo ${justGot===s.id?"new":""}" src="${logoOf(s)}" alt="${esc(s.shop)}のロゴ">`:`<div class="ph todo">？</div>`}
         <b>${esc(s.shop.replace(/^見本：/,""))}</b>
-        <small>${st&&!(st.rating||st.roast||st.memo||st.bean||st.tastes?.length||st.photo)?`<span class="pen">✎ メモを書く</span>`:`${esc(st?.roast||"")}${st?.rating?` <span class="mini">${stars(st.rating)}</span>`:""}`}</small>
+        <small>${esc(st?.roast||"")}${st?.rating?` <span class="mini">${stars(st.rating)}</span>`:""}</small>
+        ${st&&!(st.roast||st.memo?.trim()||st.bean||st.tastes?.length||st.photo)?`<small class="pen">✎ メモを書く</small>`:""}
       </button>`;
 }
 // Bonus certificate block: n=3 for 5店 飲み比べ, n=4 for 全店制覇
