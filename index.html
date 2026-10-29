@@ -499,6 +499,7 @@ async function makeImage(which){
   const d=new Date();g.fillStyle=muted;g.font=`500 20px ${B}`;g.fillText(`${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} 作成`,W/2,1275);
   // Separate images: the card, then the notes for shops 1-5, then (card 2) shops 6 and up
   const colors={ink,roast,stamp,leaf,muted,line,D,B}, stem=which===1?"collection":"all-shops", day=`${d.getMonth()+1}${String(d.getDate()).padStart(2,"0")}`;
+  idMark(g,W,H,B);
   const out=[{blob:await toBlob(c),name:`coffee-${stem}-${day}-1.png`}];
   const groups=which===1?[list]:[list.slice(0,GOAL),list.slice(GOAL)];
   for(let gi=0;gi<groups.length;gi++){
@@ -512,6 +513,9 @@ async function makeImage(which){
   $("#img-msg"+which).textContent=out.length>1?`台紙とメモの${out.length}枚に分かれています。`:"これが今のあなたのコレクションです。";$("#img-msg"+which).className="msg ok";
 }
 function toBlob(c){return new Promise(r=>c.toBlob(r,"image/png"))}
+// Small mark in the bottom-right of the card and note images: the same 認定番号 as the certificate, so a posted image can be matched in the sheet
+const SNS_TAG="#まめかけ2026";
+function idMark(g,W,H,B){g.save();g.textAlign="right";g.fillStyle="#9c8f84";g.font=`500 18px ${B}`;g.fillText(`No.${anonId().slice(-6).toUpperCase()}  ${SNS_TAG}`,W-62,H-56);g.restore()}
 // One image of tasting notes, same size as the card image: shops in two columns, each cell sized to fit
 async function notesCanvas(list,label,W,paper,c){
   const H=1350, cv=document.createElement("canvas");cv.width=W;cv.height=H;
@@ -525,6 +529,7 @@ async function notesCanvas(list,label,W,paper,c){
     const x=alone?(W-cw)/2:x0+(i%2)*(cw+gap), y=top+r*(ch+20);
     await drawNote(g,list[i],x,y,cw,ch,c);
   }
+  idMark(g,W,H,c.B);
   return cv;
 }
 // One shop's cell: logo, name, when it was stamped, stars, then bean/roast, taste and the participant's memo
