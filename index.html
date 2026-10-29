@@ -596,7 +596,7 @@ function renderProfile(){
 function favHTML(list,n){
   if(!list.length)return "";
   const cur=S.progress.fav&&list.some(s=>s.id===S.progress.fav)?S.progress.fav:"";
-  return `<label class="field"><span>いちばん好きだったお店</span><select class="fav-pick" id="fav${n}"><option value="">選んでください（未選択なら好き度がいちばん高いお店）</option>${list.map(s=>`<option value="${s.id}" ${cur===s.id?"selected":""}>${esc(s.shop.replace(/^見本：/,""))}</option>`).join("")}</select></label>`;
+  return `<label class="field"><span>印象に残ったお店</span><select class="fav-pick" id="fav${n}"><option value="">選んでください（未選択なら好き度がいちばん高いお店）</option>${list.map(s=>`<option value="${s.id}" ${cur===s.id?"selected":""}>${esc(s.shop.replace(/^見本：/,""))}</option>`).join("")}</select></label>`;
 }
 // Card 1 holds the first GOAL shops collected; card 2 (全店制覇) opens once card 1 is full and lists every shop
 function renderPlay(){
@@ -810,7 +810,7 @@ async function makeImage(which){
   g.fillStyle=roast;g.font=`900 64px ${D}`;g.textAlign="left";g.fillText(head,hx+(AV?AV+24:0),1170);g.textAlign="center";
   g.fillStyle=ink;g.font=`500 28px ${B}`;
   const fav=list.find(s=>s.id===S.progress.fav&&S.progress.stamps[s.id])||rated[0];
-  fitText(g,fav?`いちばん好きだったのは ${fav.shop.replace(/^見本：/,"")}${S.progress.stamps[fav.id].memo?"「"+S.progress.stamps[fav.id].memo+"」":""}`:"いちばん好きだったお店を選ぶと、ここに入ります",W/2,1228,W-160);
+  fitText(g,fav?`印象に残ったお店は ${fav.shop.replace(/^見本：/,"")}${S.progress.stamps[fav.id].memo?"「"+S.progress.stamps[fav.id].memo+"」":""}`:"印象に残ったお店を選ぶと、ここに入ります",W/2,1228,W-160);
   const d=new Date();g.fillStyle=muted;g.font=`500 20px ${B}`;g.fillText(`${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} 作成`,W/2,1275);
   // Separate images: the card, then the notes for shops 1-5, then (card 2) shops 6 and up
   const colors={ink,roast,stamp,leaf,muted,line,D,B}, stem=which===1?"collection":"all-shops", day=`${d.getMonth()+1}${String(d.getDate()).padStart(2,"0")}`;
