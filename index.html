@@ -529,9 +529,10 @@ function avatarSVG(p,seed){
   // The scene can be swapped for another prefecture's (p.bg) while the prefecture itself stays as entered
   const feat=PREF_FEATURE[p.pref], place=PREF_SCENE[p.bg&&PREF_SCENE[p.bg]?p.bg:p.pref], who=`${cup}${face}${ex}`, uid="c"+(n%100000);
   const [back,front]=place&&SCENES[place[0]]?SCENES[place[0]]():[`<rect width="200" height="200" fill="${bg}"/>`,""];
-  const handleLeft=p.sex==="女性", cx=handleLeft?22:44, mx=handleLeft?162:38, cy=place&&place[0]==="onsen"?44:58;
-  const item=feat?`<ellipse cx="${mx}" cy="178" rx="22" ry="5" fill="#2a201b" opacity=".18"/><g transform="translate(${mx} 154) scale(1.3)"><circle r="20" fill="#fff" opacity=".7"/>${motifSVG(feat[0])}</g>`:"";
-  const art=`${back}<ellipse cx="${cx+60}" cy="${cy+104}" rx="40" ry="6" fill="#2a201b" opacity=".15"/><g transform="translate(${cx} ${cy}) scale(.6)">${who}</g>${front}${item}`;
+  // The specialty stands on the same ground as the character, on the side away from the cup's handle, and the pair is centred
+  const handleLeft=p.sex==="女性", cx=handleLeft?22:50, mx=handleLeft?142:62, cy=place&&place[0]==="onsen"?44:58, gy=cy+104;
+  const item=feat?`<g transform="translate(${mx} ${gy-19}) scale(1.2)">${motifSVG(feat[0])}</g>`:"";
+  const art=`${back}<ellipse cx="${feat?(cx+60+mx)/2:cx+60}" cy="${gy}" rx="${feat?62:40}" ry="6" fill="#2a201b" opacity=".15"/><g transform="translate(${cx} ${cy}) scale(.6)">${who}</g>${item}${front}`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><defs><clipPath id="${uid}"><circle cx="100" cy="100" r="100"/></clipPath></defs><g clip-path="url(#${uid})">${art}</g></svg>`;
 }
 function avatarURL(){const p=S.progress.profile;return p&&p.age?"data:image/svg+xml;charset=utf-8,"+encodeURIComponent(avatarSVG(p,anonId())):""}
