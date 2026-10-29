@@ -780,20 +780,23 @@ async function makeImage(which){
   }
   // favourite
   const rated=list.filter(s=>S.progress.stamps[s.id]?.rating).sort((a,b)=>S.progress.stamps[b.id].rating-S.progress.stamps[a.id].rating);
-  g.fillStyle=roast;g.font=`900 64px ${D}`;g.fillText(which===1?(k>=GOAL?`${GOAL}店舗 飲み比べ達成！`:`${k} / ${GOAL} 杯`):(k>=total?`全${total}店舗制覇！`:`${k} / ${total} 店舗`),W/2,1170);
+  // The headline with the visitor's avatar just to its left, centred as a pair
+  const head=which===1?(k>=GOAL?`${GOAL}店舗 飲み比べ達成！`:`${k} / ${GOAL} 杯`):(k>=total?`全${total}店舗制覇！`:`${k} / ${total} 店舗`);
+  g.fillStyle=roast;g.font=`900 64px ${D}`;const hw=g.measureText(head).width, AV=avatarURL()?100:0, hx=W/2-(hw+(AV?AV+24:0))/2;
+  if(AV)await drawAvatar(g,hx,1150-AV/2,AV);
+  g.fillStyle=roast;g.font=`900 64px ${D}`;g.textAlign="left";g.fillText(head,hx+(AV?AV+24:0),1170);g.textAlign="center";
   g.fillStyle=ink;g.font=`500 28px ${B}`;
   const fav=rated[0];
   fitText(g,fav?`いちばん好きだったのは ${fav.shop.replace(/^見本：/,"")}${S.progress.stamps[fav.id].memo?"「"+S.progress.stamps[fav.id].memo+"」":""}`:"星をつけると、お気に入りがここに入ります",W/2,1228,W-160);
   const d=new Date();g.fillStyle=muted;g.font=`500 20px ${B}`;g.fillText(`${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} 作成`,W/2,1275);
-  await drawAvatar(g,W-176,64,112);
   // Separate images: the card, then the notes for shops 1-5, then (card 2) shops 6 and up
   const colors={ink,roast,stamp,leaf,muted,line,D,B}, stem=which===1?"collection":"all-shops", day=`${d.getMonth()+1}${String(d.getDate()).padStart(2,"0")}`;
   const out=[{blob:await toBlob(c),name:`coffee-${stem}-${day}-1.png`}];
-  const groups=which===1?[list]:[list.slice(0,GOAL),list.slice(GOAL)];
+  const groups=which===1?[list]:[list.slice(0,GOAL),list.slice(GOAL)], sizes=which===1?[0]:[GOAL,all.length-GOAL];
   for(let gi=0;gi<groups.length;gi++){
     if(!groups[gi].length)continue;
     const from=gi*GOAL+1;
-    out.push({blob:await toBlob(await notesCanvas(groups[gi],`${from}〜${from+groups[gi].length-1}店舗目`,W,paper,colors)),name:`coffee-${stem}-${day}-${out.length+1}.png`});
+    out.push({blob:await toBlob(await notesCanvas(groups[gi],`${from}〜${from+groups[gi].length-1}店舗目`,W,paper,colors,sizes[gi])),name:`coffee-${stem}-${day}-${out.length+1}.png`});
   }
   lastBlobs[which]=out;track("image",null,false,{what:IMG_LABEL[which]});
   $("#img-box"+which).innerHTML=`${out.map((o,i)=>`<img class="preview" src="${URL.createObjectURL(o.blob)}" alt="${i?"メモの画像":"台紙の画像"}">`).join("")}
@@ -805,15 +808,17 @@ async function drawAvatar(g,x,y,size){const u=avatarURL();if(!u)return;const im=
   g.save();g.beginPath();g.arc(x+size/2,y+size/2,size/2+5,0,Math.PI*2);g.fillStyle="#fff";g.fill();g.drawImage(im,x,y,size,size);g.restore()}
 function toBlob(c){return new Promise(r=>c.toBlob(r,"image/png"))}
 // One image of tasting notes, same size as the card image: shops in two columns, each cell sized to fit
-async function notesCanvas(list,label,W,paper,c){
+// slots: how many cells the layout is sized for (card 2 keeps the full size even part way through)
+async function notesCanvas(list,label,W,paper,c,slots){
+  slots=Math.max(slots||0,list.length);
   const H=1350, cv=document.createElement("canvas");cv.width=W;cv.height=H;
   const g=cv.getContext("2d");g.fillStyle=paper;g.fillRect(0,0,W,H);
   g.strokeStyle=c.line;g.lineWidth=4;g.strokeRect(40,40,W-80,H-80);
   g.textAlign="center";g.fillStyle=c.leaf;g.font=`700 26px ${c.B}`;g.fillText("MY TASTING NOTES",W/2,120);
   g.fillStyle=c.roast;g.font=`700 36px ${c.B}`;fitText(g,`${S.cfg.title} ・ ${label}`,W/2,175,W-160);
-  const x0=80, top=220, gap=24, cw=(W-2*x0-gap)/2, rows=Math.ceil(list.length/2), ch=(1270-top-(rows-1)*20)/rows;
+  const x0=80, top=220, gap=24, cw=(W-2*x0-gap)/2, rows=Math.ceil(slots/2), ch=(1270-top-(rows-1)*20)/rows;
   for(let i=0;i<list.length;i++){
-    const r=Math.floor(i/2), alone=i===list.length-1&&list.length%2===1;
+    const r=Math.floor(i/2), alone=i===slots-1&&slots%2===1;
     const x=alone?(W-cw)/2:x0+(i%2)*(cw+gap), y=top+r*(ch+20);
     await drawNote(g,list[i],x,y,cw,ch,c);
   }
