@@ -292,7 +292,7 @@ function renderSaveNote(){
   const el=$("#save-note");if(!el)return;
   if(S.remote&&S.cloudOK){el.textContent="✓ 記録はあなたのアカウントに保存されています。画面やスマホを閉じても、あとで開き直せば残っています。";el.className="msg ok"}
   else if(S.remote){el.textContent="記録はこのスマホにだけ保存されています（アカウントへの保存が許可されていません）。同じブラウザで開き直せば残っています。";el.className="msg"}
-  else{el.textContent="アカウント登録なしで、記録はこのスマホに保存されます。画面を閉じても、同じブラウザで開けば残っています（プライベートモードでは残りません）。"+(TRACK_URL?"お店の来店やメモ、サイトの使われ方を匿名で集計し、今後のイベントづくりに使います（名前や連絡先はいただきません）。":"");el.className="msg"}
+  else{el.textContent="アカウント登録なしで、記録はこのスマホに保存されます。画面を閉じても、同じブラウザで開けば残っています（プライベートモードでは残りません）。";el.className="msg"}
 }
 
 /* ---------- derived ---------- */
@@ -528,9 +528,15 @@ function cupChar(sex,age,n,col,acc){
 }
 // Who came along, and the companions drawn beside the character: [cup type, relative size]
 const WITH=["ひとり","家族","夫婦・カップル","友だち","子どもと","仕事仲間"];
+function withList(w){return Array.isArray(w)?w:w?[w]:[]}
 function companions(rel,sex){
-  const other=sex==="女性"?"男性":sex==="男性"?"女性":"答えない", kid=["kid",.62];
-  return {"家族":[[other,.92],kid],"夫婦・カップル":[[other,.92]],"友だち":[[sex,.92]],"子どもと":[kid],"仕事仲間":[["work",.92]]}[rel]||[];
+  const w=withList(rel), other=sex==="女性"?"男性":sex==="男性"?"女性":"答えない", out=[];
+  // 家族 and 夫婦・カップル share one partner, 家族 and 子どもと share one child
+  if(w.includes("家族")||w.includes("夫婦・カップル"))out.push([other,.92]);
+  if(w.includes("友だち"))out.push([sex,.92]);
+  if(w.includes("仕事仲間"))out.push(["work",.92]);
+  if(w.includes("家族")||w.includes("子どもと"))out.push(["kid",.62]);
+  return out;
 }
 // Width and foot of each cup type inside its 200 box
 const CUP_BOX={"女性":[24,156,168],"男性":[50,170,172],"答えない":[56,172,170]};
@@ -544,7 +550,7 @@ function avatarSVG(p,seed){
   const feat=PREF_FEATURE[p.pref], place=PREF_SCENE[p.bg&&PREF_SCENE[p.bg]?p.bg:p.pref], uid="c"+(n%100000);
   const [back,front]=place&&SCENES[place[0]]?SCENES[place[0]]():[`<rect width="200" height="200" fill="${bg}"/>`,""];
   // Everyone stands on one ground line, centred: companions on the cup handle's side, the specialty on the other
-  const comp=companions(p.with,p.sex), handleLeft=p.sex==="女性", s=comp.length?(comp.length>1?.46:.5):.6;
+  const comp=companions(p.with,p.sex), handleLeft=p.sex==="女性", s=[.6,.5,.46,.4,.36][comp.length];
   const gy=(place&&place[0]==="onsen"?148:162)-(comp.length?6:0);
   const fig=(type,k,svg)=>{const [x0,x1,foot]=CUP_BOX[type];return {w:(x1-x0)*k,draw:x=>`<g transform="translate(${x-x0*k} ${gy-foot*k}) scale(${k})">${svg}</g>`}};
   const people=comp.map(([t,k],i)=>t==="kid"?fig("答えない",s*k,cupChar("答えない","10代以下",n+7,col,acc)):t==="work"?fig("答えない",s*k,cupChar("答えない","work",n+3,col,acc)):fig(t,s*k,cupChar(t,"",n+i+1,col,acc)));
@@ -552,21 +558,23 @@ function avatarSVG(p,seed){
   const item=feat?{w:36*ik,draw:x=>`<g transform="translate(${x+18*ik} ${gy-19*ik}) scale(${ik})">${motifSVG(feat[0])}</g>`}:null;
   const row=handleLeft?[...people.reverse(),me,item]:[item,me,...people];
   const line=row.filter(Boolean), gap=comp.length?-2:4, total=line.reduce((t,f)=>t+f.w,0)+gap*(line.length-1);
+  // a big group shrinks around the middle of the ground so nobody is cut off by the circle
+  const room=2*Math.sqrt(100*100-(gy-100)**2)-14, f=Math.min(1,room/total);
   let x=100-total/2;const drawn=line.map(f=>{const g=f.draw(x);x+=f.w+gap;return g}).join("");
-  const art=`${back}<ellipse cx="100" cy="${gy}" rx="${total/2+6}" ry="6" fill="#2a201b" opacity=".15"/>${drawn}${front}`;
+  const art=`${back}<g transform="translate(100 ${gy}) scale(${f.toFixed(3)}) translate(-100 ${-gy})"><ellipse cx="100" cy="${gy}" rx="${total/2+6}" ry="6" fill="#2a201b" opacity=".15"/>${drawn}</g>${front}`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><defs><clipPath id="${uid}"><circle cx="100" cy="100" r="100"/></clipPath></defs><g clip-path="url(#${uid})">${art}</g></svg>`;
 }
 function avatarURL(){const p=S.progress.profile;return p&&p.age?"data:image/svg+xml;charset=utf-8,"+encodeURIComponent(avatarSVG(p,anonId())):""}
 let profDraft=null;
 function profileHTML(){
-  const d=profDraft||{...(S.progress.profile||{})}, ready=d.age&&d.sex&&d.pref&&(d.city||"").trim()&&d.with, reg=regionOf(d.pref);
+  const d=profDraft||{...(S.progress.profile||{})}, ready=d.age&&d.sex&&d.pref&&(d.city||"").trim()&&withList(d.with).length, reg=regionOf(d.pref);
   const svg=avatarSVG({age:d.age||"20代",sex:d.sex||"答えない",pref:d.pref||"鳥取県",bg:d.bg,with:d.with},anonId());
-  const group=(label,key,list)=>`<div class="field"><span>${label}</span><div class="chips">${list.map(v=>`<button type="button" class="chip ${d[key]===v?"on":""}" data-prof="${key}" data-v="${v}">${v}</button>`).join("")}</div></div>`;
+  const group=(label,key,list)=>`<div class="field"><span>${label}</span><div class="chips">${list.map(v=>`<button type="button" class="chip ${d[key]===v||withList(d[key]).includes(v)&&key==="with"?"on":""}" data-prof="${key}" data-v="${v}">${v}</button>`).join("")}</div></div>`;
   return `<div class="eyebrow">MY AVATAR</div><h3>あなたのアバターを作ろう</h3>
     <div class="avatar-pre${ready?"":" ghost"}">${svg}</div>
     ${reg?`<p class="msg" style="text-align:center;margin:-6px 0 0">${esc(reg==="海外"?"海外":reg+"地方")}カラー：${REGION_COL[reg][3]}<br>${esc(PREF_SCENE[d.bg||d.pref][1])}で${esc(PREF_FEATURE[d.pref][1])}と一緒のあなた</p>`:""}
-    <p class="note">年代・性別・お住まい・誰と来たかを選ぶと、あなただけのコーヒーキャラができます。一緒に来た人もとなりに並びます。色はお住まいの地方で変わり、都道府県の名所の景色の中に名物と一緒に描かれます。景色は別の場所にも変えられます。台紙と認定証に載ります。答えは匿名で集計し、今後のイベントづくりに使います。</p>
-    ${group("年代","age",AGES)}${group("性別","sex",SEXES)}${group("誰と来た？","with",WITH)}
+    <p class="note">年代・性別・お住まい・誰と来たかを選ぶと、あなただけのコーヒーキャラができます。一緒に来た人もとなりに並びます。色はお住まいの地方で変わり、都道府県の名所の景色の中に名物と一緒に描かれます。景色は別の場所にも変えられます。台紙と認定証に載ります。</p>
+    ${group("年代","age",AGES)}${group("性別","sex",SEXES)}${group("誰と来た？（いくつでも）","with",WITH)}
     <div class="grid2"><label class="field"><span>都道府県</span><select id="prof-pref"><option value="">選んでください</option>${PREFS.map(v=>`<option ${d.pref===v?"selected":""}>${v}</option>`).join("")}</select></label>
     <label class="field"><span>市区町村</span><input id="prof-city" type="text" maxlength="20" placeholder="例：琴浦町" value="${esc(d.city||"")}"></label></div>
     ${d.pref?`<label class="field"><span>背景の景色</span><select id="prof-bg">${PREFS.map(v=>`<option value="${v}" ${(d.bg||d.pref)===v?"selected":""}>${esc(PREF_SCENE[v][1])}（${v}）</option>`).join("")}</select></label>`:""}
@@ -585,7 +593,7 @@ function renderPlay(){
   const empty=`<button class="slot empty" data-scan aria-label="押すとQRを読み込みます"><div class="ph todo">？</div><b>ここを押して</b><small>QRを読み込む</small></button>`;
   $("#play-card").innerHTML=`
     <div class="head"><div class="eyebrow">COFFEE STAMP RALLY ・ 1枚目</div><h2>${esc(S.cfg.title)}</h2><p>${esc(S.cfg.date)} ／ ${esc(S.cfg.place)}</p></div>
-    ${S.progress.profile?`<div class="me"><img src="${avatarURL()}" alt="あなたのアバター"><span>あなたのアバター<small>${esc(S.progress.profile.age)}・${esc(S.progress.profile.pref)}${esc(S.progress.profile.city||"")}${S.progress.profile.with&&S.progress.profile.with!=="ひとり"?"・"+esc(S.progress.profile.with)+"で来場":""}</small></span><button class="btn ghost" id="prof-edit">変える</button></div>`
+    ${S.progress.profile?`<div class="me"><img src="${avatarURL()}" alt="あなたのアバター"><span>あなたのアバター<small>${esc(S.progress.profile.age)}・${esc(S.progress.profile.pref)}${esc(S.progress.profile.city||"")}${withList(S.progress.profile.with).filter(x=>x!=="ひとり").length?"・"+esc(withList(S.progress.profile.with).join("、"))+"で来場":""}</small></span><button class="btn ghost" id="prof-edit">変える</button></div>`
       :S.progress.profileSkip?`<div class="me"><span class="me-add">？</span><span>アバターはまだありません</span><button class="btn ghost" id="prof-edit">作る</button></div>`:""}
     ${demo?`<p class="note">コーヒーショップがまだ台紙に載っていないので、<span class="tag demo">見本</span>の5店で試せます。各店のQRは「主催者」タブに出ています。</p>`:""}
     ${total>GOAL?`<p class="note">好きなお店を${GOAL}店舗回って飲み比べ。${GOAL}店舗そろうと「飲み比べ達成認定証」がもらえて、2枚目の「全店制覇」台紙が開きます。</p>`:""}
@@ -642,10 +650,12 @@ function viewPlay(){
 $("#view-play").addEventListener("click",async e=>{
   const t=e.target;
   const o=t.closest("[data-open]");
-  if(t.dataset.prof){profDraft=profDraft||{...(S.progress.profile||{})};profDraft[t.dataset.prof]=t.dataset.v;const c=$("#prof-city")?.value;if(c!=null)profDraft.city=c;renderProfile();return}
+  if(t.dataset.prof){profDraft=profDraft||{...(S.progress.profile||{})};if(t.dataset.prof==="with"){const v=t.dataset.v, w=withList(profDraft.with).filter(x=>x!=="ひとり");
+    profDraft.with=v==="ひとり"?["ひとり"]:w.includes(v)?w.filter(x=>x!==v):WITH.filter(x=>x===v||w.includes(x))}
+  else profDraft[t.dataset.prof]=t.dataset.v;const c=$("#prof-city")?.value;if(c!=null)profDraft.city=c;renderProfile();return}
   if(t.id==="prof-save"&&profDraft){const city=($("#prof-city")?.value||"").replace(/[・\s]/g,"").slice(0,20);
-    S.progress.profile={age:profDraft.age,sex:profDraft.sex,pref:profDraft.pref,city,with:profDraft.with};if(profDraft.bg&&profDraft.bg!==profDraft.pref)S.progress.profile.bg=profDraft.bg;profDraft=null;await saveProgress();
-    track("profile",null,false,{what:`${S.progress.profile.age}・${S.progress.profile.sex}・${S.progress.profile.pref}・${city}・${S.progress.profile.with.replace("・","/")}`});renderProfile();renderPlay();return}
+    S.progress.profile={age:profDraft.age,sex:profDraft.sex,pref:profDraft.pref,city,with:withList(profDraft.with)};if(profDraft.bg&&profDraft.bg!==profDraft.pref)S.progress.profile.bg=profDraft.bg;profDraft=null;await saveProgress();
+    track("profile",null,false,{what:`${S.progress.profile.age}・${S.progress.profile.sex}・${S.progress.profile.pref}・${city}・${S.progress.profile.with.map(x=>x.replace("・","/")).join("+")}`});renderProfile();renderPlay();return}
   if(t.id==="prof-cancel"){profDraft=null;renderProfile();return}
   // Choosing not to have an avatar is kept, and a later 「作る」 can still make one
   if(t.id==="prof-none"){const had=!!S.progress.profile;delete S.progress.profile;S.progress.profileSkip=true;profDraft=null;await saveProgress();
@@ -673,7 +683,7 @@ $("#view-play").addEventListener("click",async e=>{
 // The town is required, so typing it is what enables saving
 $("#view-play").addEventListener("input",e=>{
   if(e.target.id!=="prof-city")return;profDraft=profDraft||{...(S.progress.profile||{})};profDraft.city=e.target.value;
-  const d=profDraft, b=$("#prof-save"), ok=!!(d.age&&d.sex&&d.pref&&d.city.trim()&&d.with);if(b)b.disabled=!ok;$(".avatar-pre")?.classList.toggle("ghost",!ok);
+  const d=profDraft, b=$("#prof-save"), ok=!!(d.age&&d.sex&&d.pref&&d.city.trim()&&withList(d.with).length);if(b)b.disabled=!ok;$(".avatar-pre")?.classList.toggle("ghost",!ok);
 });
 // A photo for a shop's notes: shrunk on the phone so a dozen fit in browser storage
 $("#view-play").addEventListener("change",async e=>{
