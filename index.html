@@ -817,10 +817,12 @@ async function notesCanvas(list,label,W,paper,c,slots){
   g.textAlign="center";g.fillStyle=c.leaf;g.font=`700 26px ${c.B}`;g.fillText("MY TASTING NOTES",W/2,120);
   g.fillStyle=c.roast;g.font=`700 36px ${c.B}`;fitText(g,`${S.cfg.title} ・ ${label}`,W/2,175,W-160);
   const x0=80, top=220, gap=24, cw=(W-2*x0-gap)/2, rows=Math.ceil(slots/2), ch=(1270-top-(rows-1)*20)/rows;
-  for(let i=0;i<list.length;i++){
+  // Shops not visited yet keep their empty frame
+  for(let i=0;i<slots;i++){
     const r=Math.floor(i/2), alone=i===slots-1&&slots%2===1;
     const x=alone?(W-cw)/2:x0+(i%2)*(cw+gap), y=top+r*(ch+20);
-    await drawNote(g,list[i],x,y,cw,ch,c);
+    if(i<list.length)await drawNote(g,list[i],x,y,cw,ch,c);
+    else{g.fillStyle="#fffdf9";g.strokeStyle=c.line;g.lineWidth=3;roundRect(g,x,y,cw,ch,22);g.fill();g.stroke()}
   }
   return cv;
 }
