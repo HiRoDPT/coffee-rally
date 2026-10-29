@@ -796,7 +796,7 @@ async function makeImage(which){
   for(let gi=0;gi<groups.length;gi++){
     if(!groups[gi].length)continue;
     const from=gi*GOAL+1;
-    out.push({blob:await toBlob(await notesCanvas(groups[gi],`${from}〜${from+groups[gi].length-1}店舗目`,W,paper,colors,sizes[gi])),name:`coffee-${stem}-${day}-${out.length+1}.png`});
+    out.push({blob:await toBlob(await notesCanvas(groups[gi],`${from}〜${from+Math.max(sizes[gi],groups[gi].length)-1}店舗目`,W,paper,colors,sizes[gi])),name:`coffee-${stem}-${day}-${out.length+1}.png`});
   }
   lastBlobs[which]=out;track("image",null,false,{what:IMG_LABEL[which]});
   $("#img-box"+which).innerHTML=`${out.map((o,i)=>`<img class="preview" src="${URL.createObjectURL(o.blob)}" alt="${i?"メモの画像":"台紙の画像"}">`).join("")}
@@ -811,6 +811,7 @@ function toBlob(c){return new Promise(r=>c.toBlob(r,"image/png"))}
 // slots: how many cells the layout is sized for (card 2 keeps the full size even part way through)
 async function notesCanvas(list,label,W,paper,c,slots){
   slots=Math.max(slots||0,list.length);
+  const rest=shops().all.filter(s=>!S.progress.stamps[s.id]);
   const H=1350, cv=document.createElement("canvas");cv.width=W;cv.height=H;
   const g=cv.getContext("2d");g.fillStyle=paper;g.fillRect(0,0,W,H);
   g.strokeStyle=c.line;g.lineWidth=4;g.strokeRect(40,40,W-80,H-80);
@@ -822,18 +823,19 @@ async function notesCanvas(list,label,W,paper,c,slots){
     const r=Math.floor(i/2), alone=i===slots-1&&slots%2===1;
     const x=alone?(W-cw)/2:x0+(i%2)*(cw+gap), y=top+r*(ch+20);
     if(i<list.length)await drawNote(g,list[i],x,y,cw,ch,c);
-    else{g.fillStyle="#fffdf9";g.strokeStyle=c.line;g.lineWidth=3;roundRect(g,x,y,cw,ch,22);g.fill();g.stroke()}
+    else await drawNote(g,rest[i-list.length]||{id:"",shop:""},x,y,cw,ch,c,true);
   }
   return cv;
 }
 // One shop's cell: logo, name, when it was stamped, stars, then bean/roast, taste and the participant's memo
-async function drawNote(g,s,x,y,w,h,c){
+async function drawNote(g,s,x,y,w,h,c,todo){
   // Short cells (7 shops on one image) put the time and stars on one line so the memo keeps room
   const st=S.progress.stamps[s.id]||{}, small=h<300, P=small?18:22, R=small?34:44, LH=small?28:30;
   g.fillStyle="#fffdf9";g.strokeStyle=c.line;g.lineWidth=3;roundRect(g,x,y,w,h,22);g.fill();g.stroke();
   const cx=x+P+R, cy=y+P+R;
   g.save();g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);g.fillStyle="#efe8e0";g.fill();
-  const img=await loadImg(logoOf(s));
+  const img=todo?null:await loadImg(logoOf(s));
+  if(todo){g.fillStyle=c.muted;g.font=`700 ${Math.round(R*.7)}px ${c.B}`;g.textAlign="center";g.fillText("？",cx,cy+R*.25)}
   if(img){g.clip();const sc=Math.max(2*R/img.width,2*R/img.height);g.drawImage(img,cx-img.width*sc/2,cy-img.height*sc/2,img.width*sc,img.height*sc)}
   g.restore();g.strokeStyle=c.line;g.lineWidth=2;g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);g.stroke();
   // The participant's photo, if any, sits in the top-right corner
@@ -841,8 +843,8 @@ async function drawNote(g,s,x,y,w,h,c){
   if(ph){const px=x+w-P-PS, py=y+P;g.save();roundRect(g,px,py,PS,PS,12);g.clip();const sc=Math.max(PS/ph.width,PS/ph.height);g.drawImage(ph,px+PS/2-ph.width*sc/2,py+PS/2-ph.height*sc/2,ph.width*sc,ph.height*sc);g.restore();g.strokeStyle=c.line;g.lineWidth=2;roundRect(g,px,py,PS,PS,12);g.stroke()}
   const tx=cx+R+18, tw=x+w-P-tx-(ph?PS+12:0);
   g.textAlign="left";
-  g.fillStyle=c.roast;g.font=`700 28px ${c.B}`;fitText(g,s.shop.replace(/^見本：/,""),tx,y+P+28,tw);
-  g.fillStyle=c.muted;g.font=`500 18px ${c.B}`;const at=st.at?`飲んだ ${st.at}`:"", atW=g.measureText(at).width;g.fillText(at,tx,y+P+58);
+  g.fillStyle=todo?c.muted:c.roast;g.font=`700 28px ${c.B}`;fitText(g,s.shop.replace(/^見本：/,""),tx,y+P+28,tw);
+  g.fillStyle=c.muted;g.font=`500 18px ${c.B}`;const at=st.at?`飲んだ ${st.at}`:todo?"まだ飲んでいません":"", atW=g.measureText(at).width;g.fillText(at,tx,y+P+58);
   g.fillStyle=c.stamp;g.font=`${small?(ph?17:20):24}px ${c.B}`;
   if(small)g.fillText(st.rating?stars(st.rating):"",tx+atW+(at?(ph?12:34):0),y+P+58);
   else g.fillText(st.rating?stars(st.rating):"",tx,y+P+90);
