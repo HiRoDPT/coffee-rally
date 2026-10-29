@@ -347,7 +347,7 @@ const PREF_FEATURE={"北海道":["corn","とうもろこし"],"青森県":["appl
   "茨城県":["melon","メロン"],"栃木県":["strawberry","いちご"],"群馬県":["daruma","だるま"],"埼玉県":["tea","狭山茶"],"千葉県":["peanut","落花生"],"東京都":["tower","東京タワー"],"神奈川県":["wave","湘南の波"],
   "新潟県":["rice","コシヒカリ"],"富山県":["fish","富山湾の魚"],"石川県":["crab","加能ガニ"],"福井県":["crab","越前ガニ"],"山梨県":["grape","ぶどう"],"長野県":["apple","りんご"],"岐阜県":["fish","鮎"],"静岡県":["fuji","富士山"],"愛知県":["ebi","エビフライ"],
   "三重県":["pearl","真珠"],"滋賀県":["lake","琵琶湖"],"京都府":["tea","宇治抹茶"],"大阪府":["takoyaki","たこ焼き"],"兵庫県":["castle","姫路城"],"奈良県":["deer","鹿"],"和歌山県":["mikan","みかん"],
-  "鳥取県":["pear","二十世紀梨"],"島根県":["torii","出雲大社"],"岡山県":["peach","白桃"],"広島県":["momiji","もみじ"],"山口県":["fugu","ふぐ"],
+  "鳥取県":["dune","鳥取砂丘"],"島根県":["torii","出雲大社"],"岡山県":["peach","白桃"],"広島県":["momiji","もみじ"],"山口県":["fugu","ふぐ"],
   "徳島県":["citrusG","すだち"],"香川県":["udon","讃岐うどん"],"愛媛県":["mikan","みかん"],"高知県":["citrusY","ゆず"],
   "福岡県":["strawberry","あまおう"],"佐賀県":["plate","有田焼"],"長崎県":["castella","カステラ"],"熊本県":["watermelon","すいか"],"大分県":["onsen","温泉"],"宮崎県":["mango","マンゴー"],"鹿児島県":["imo","さつまいも"],"沖縄県":["hibiscus","ハイビスカス"],"海外":["globe","世界"]};
 // Motifs drawn around (0,0) in about a 40px box, in the same outlined style as the cup
@@ -355,6 +355,8 @@ function motifSVG(m){
   const o=`stroke="#2a201b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"`, leaf=(x,y,r)=>`<path d="M${x} ${y}c6-8 14-6 14-6c-2 8-8 10-14 6z" fill="#5a9a3a" ${o} transform="rotate(${r||0} ${x} ${y})"/>`;
   const citrus=c=>`<circle cy="3" r="13" fill="${c}" ${o}/>${leaf(0,-10,-20)}<circle cx="-4" cy="0" r="1.5" fill="#fff" opacity=".7"/>`;
   return ({
+    dune:`<circle cx="11" cy="-11" r="5.5" fill="#f39a1e" ${o}/><path d="M-19 15c6-14 16-20 24-16c6 3 9 9 14 9v7z" fill="#e8c27a" ${o}/><path d="M-12 12c6-6 14-6 22-2" fill="none" stroke="#c99a4a" stroke-width="2" stroke-linecap="round"/>
+      <path d="M-12 1c0-5 3-7 5-4c1-3 5-3 6 0l1 1l3-6c1-2 4-2 4 0l-1 1l-3 8v5h-2v-4h-9v4h-2v-4c-1-1-2-1-2-1z" fill="#7a4a2a" stroke="#2a201b" stroke-width="1.5" stroke-linejoin="round"/>`,
     corn:`<ellipse rx="8" ry="15" fill="#f6c933" ${o}/><path d="M-4-8h8M-5-2h10M-5 4h10M-4 10h8" stroke="#d9a520" stroke-width="2"/><path d="M-8 4c-8-6-6-16-4-20M8 4c8-6 6-16 4-20" fill="none" stroke="#5a9a3a" stroke-width="4" stroke-linecap="round"/>`,
     apple:`<path d="M0-6c-14-8-20 6-14 16c4 6 10 6 14 3c4 3 10 3 14-3c6-10 0-24-14-16z" fill="#d93b35" ${o}/><path d="M0-6v-8" ${o}/>${leaf(1,-12,-10)}`,
     peach:`<path d="M0 14c-14 0-16-14-10-20c4-4 10-2 10 2c0-4 6-6 10-2c6 6 4 20-10 20z" fill="#f7a6a8" ${o}/><path d="M0-4c-2 6-2 12 0 16" fill="none" stroke="#e07a80" stroke-width="2"/>${leaf(0,-6,200)}`,
