@@ -317,23 +317,23 @@ function renderPlay(){
   $("#play-card").innerHTML=`
     <div class="head"><div class="eyebrow">COFFEE STAMP RALLY ・ 1枚目</div><h2>${esc(S.cfg.title)}</h2><p>${esc(S.cfg.date)} ／ ${esc(S.cfg.place)}</p></div>
     ${demo?`<p class="note">出店者がまだ台紙に載っていないので、<span class="tag demo">見本</span>の5店で試せます。各店のQRは「主催者」タブに出ています。</p>`:""}
-    ${total>GOAL?`<p class="note">好きなお店を${GOAL}店回って飲み比べ。${GOAL}店そろうと「飲み比べ達成認定証」がもらえて、2枚目の「全店制覇」台紙が開きます。</p>`:""}
+    ${total>GOAL?`<p class="note">好きなお店を${GOAL}店舗回って飲み比べ。${GOAL}店舗そろうと「飲み比べ達成認定証」がもらえて、2枚目の「全店制覇」台紙が開きます。</p>`:""}
     <div class="meter"><div class="bar"><i style="width:${k1/GOAL*100}%"></i></div>${k1} / ${GOAL} 杯</div>
     <p class="msg" id="save-note" style="font-size:12px"></p>
     <button class="btn wide" id="scan-open">QRコードを読み込む</button>
     <div class="cups five">${[...first.map(slotHTML),...Array(GOAL-k1).fill(empty)].join("")}</div>
-    ${k1>=GOAL?`<div class="reward done"><strong>${GOAL}店 飲み比べ達成！</strong>${second?"2枚目の「全店制覇」台紙が開きました。下へ進んでください。":"飲み比べおつかれさまでした。"}</div>${certHTML(3,"飲み比べ達成認定証",`${GOAL}店を飲み比べたあなたへの特典です。`)}`:""}
+    ${k1>=GOAL?`<div class="reward done"><strong>${GOAL}店舗 飲み比べ達成！</strong>${second?"2枚目の「全店制覇」台紙が開きました。下へ進んでください。":"飲み比べおつかれさまでした。"}</div>${certHTML(3,"飲み比べ達成認定証",`${GOAL}店舗を飲み比べたあなたへの特典です。`)}`:""}
     <button class="btn wide leaf" id="make-img1" ${k1?"":"disabled"}>1枚目を画像にする</button>
     <p class="msg" id="img-msg1">${k1?"何杯の時点でも画像にできます。各店のメモも下に一緒に入ります。":"1杯飲むと画像にできます。"}</p>
     <div id="img-box1"></div>`;
   const c2=$("#play-card2");
   c2.hidden=!second;
   c2.innerHTML=second?`
-    <div class="head"><div class="eyebrow">ALL SHOPS CHALLENGE ・ 2枚目</div><h2>全店制覇台紙</h2><p>全${total}店のスタンプを集めよう</p></div>
-    <div class="meter"><div class="bar"><i style="width:${k/total*100}%"></i></div>${k} / ${total} 店</div>
+    <div class="head"><div class="eyebrow">ALL SHOPS CHALLENGE ・ 2枚目</div><h2>全店制覇台紙</h2><p>全${total}店舗のスタンプを集めよう</p></div>
+    <div class="meter"><div class="bar"><i style="width:${k/total*100}%"></i></div>${k} / ${total} 店舗</div>
     <div class="cups">${[...list,...all.filter(s=>!S.progress.stamps[s.id])].map(slotHTML).join("")}</div>
-    ${complete?`<div class="reward done"><strong>全${total}店制覇！</strong>すべてのお店を回りました。おめでとうございます！</div>
-    ${certHTML(4,"全店制覇認定証","全店制覇したあなただけの特典です。")}`:`<p class="msg">全店制覇まであと${total-k}店です。全店そろうと、特典の「全店制覇認定証」がもらえます。</p>`}
+    ${complete?`<div class="reward done"><strong>全${total}店舗制覇！</strong>すべてのお店を回りました。おめでとうございます！</div>
+    ${certHTML(4,"全店制覇認定証","全店制覇したあなただけの特典です。")}`:`<p class="msg">全店制覇まであと${total-k}店舗です。全店そろうと、特典の「全店制覇認定証」がもらえます。</p>`}
     <button class="btn wide leaf" id="make-img2">2枚目を画像にする</button>
     <p class="msg" id="img-msg2">全店のスタンプと、集めたお店のメモが入ります。</p>
     <div id="img-box2"></div>`:"";
@@ -413,7 +413,7 @@ function renderArrive(){
     <img class="big" src="${logoOf(s)}" alt="${esc(s.shop)}のロゴ">
     <h3>${esc(s.shop.replace(/^見本：/,""))}</h3>
     <p class="msg">${arrive.again?"このお店のスタンプはもう台紙に載っています。":"ロゴのスタンプを台紙に載せました。下で好みの星をつけられます。"}</p>
-    <p class="msg ok">${(()=>{const {list,all}=shops();const k=list.length,t=all.length;return k>=t?`全${t}店制覇！`:k===GOAL&&!arrive.again?`${GOAL}店 飲み比べ達成！${t>GOAL?"2枚目の「全店制覇」台紙が開きました。":""}`:`${k} / ${t} 店`})()}</p>
+    <p class="msg ok">${(()=>{const {list,all}=shops();const k=list.length,t=all.length;return k>=t?`全${t}店舗制覇！`:k===GOAL&&!arrive.again?`${GOAL}店舗 飲み比べ達成！${t>GOAL?"2枚目の「全店制覇」台紙が開きました。":""}`:`${k} / ${t} 店舗`})()}</p>
     <button class="btn ghost" id="arrive-close">台紙を見る</button>`;
 }
 window.addEventListener("hashchange",()=>{const c=parseHash();if(c){pendingCode=c;tryArrive()}});
@@ -463,7 +463,7 @@ async function makeImage(which){
   }
   // favourite
   const rated=list.filter(s=>S.progress.stamps[s.id]?.rating).sort((a,b)=>S.progress.stamps[b.id].rating-S.progress.stamps[a.id].rating);
-  g.fillStyle=roast;g.font=`900 64px ${D}`;g.fillText(which===1?(k>=GOAL?`${GOAL}店 飲み比べ達成！`:`${k} / ${GOAL} 杯`):(k>=total?`全${total}店制覇！`:`${k} / ${total} 店`),W/2,1170);
+  g.fillStyle=roast;g.font=`900 64px ${D}`;g.fillText(which===1?(k>=GOAL?`${GOAL}店舗 飲み比べ達成！`:`${k} / ${GOAL} 杯`):(k>=total?`全${total}店舗制覇！`:`${k} / ${total} 店舗`),W/2,1170);
   g.fillStyle=ink;g.font=`500 28px ${B}`;
   const fav=rated[0];
   fitText(g,fav?`いちばん好きだったのは ${fav.shop.replace(/^見本：/,"")}${S.progress.stamps[fav.id].memo?"「"+S.progress.stamps[fav.id].memo+"」":""}`:"星をつけると、お気に入りがここに入ります",W/2,1228,W-160);
@@ -603,7 +603,7 @@ function viewAdmin(){
     <p class="msg" id="imp-msg"></p>
   </div>
   <div class="panel"><div class="eyebrow">STEP 2</div><div class="row" style="justify-content:space-between"><h3>台紙に載せる店を選ぶ</h3><span class="tag" id="ap-count"></span></div>
-    <p class="note">「掲載する」を押した店が出店者として載ります（最大${SHOP_MAX}店）。参加者は${GOAL}店で「飲み比べ達成」、全店で「全店制覇」になります。「ロゴ」から各店のロゴ画像を入れてください。入れていない店は仮のロゴになります。</p>
+    <p class="note">「掲載する」を押した店が出店者として載ります（最大${SHOP_MAX}店舗）。参加者は${GOAL}店舗で「飲み比べ達成」、全店で「全店制覇」になります。「ロゴ」から各店のロゴ画像を入れてください。入れていない店は仮のロゴになります。</p>
     <div id="admin-apps" class="wrap" style="gap:10px"></div></div>
   <div class="panel"><div class="eyebrow">STEP 3</div><h3>店ごとのQRコード</h3>
     <p class="note">「QRを保存」で画像を保存し、印刷して各店に置いてください。参加者がスマホのカメラで読むと、この台紙が開いてお店のロゴのスタンプが載ります。${shops().demo?"今は見本の5店のQRです。":""}</p>
@@ -656,7 +656,7 @@ async function importRows(rows){
     await saveVendor("v"+(t+i).toString(36)+Math.random().toString(36).slice(2,5),{...r,code:newCode(),image:null,createdAt:t+i});
   }
   $("#imp-text").value="";
-  $("#imp-msg").textContent=`${added}店を取り込みました${skipped?`（同じ店名の${skipped}件は飛ばしました）`:""}。`;$("#imp-msg").className="msg ok";
+  $("#imp-msg").textContent=`${added}店舗を取り込みました${skipped?`（同じ店名の${skipped}件は飛ばしました）`:""}。`;$("#imp-msg").className="msg ok";
   renderAdminApps();
 }
 const vad=$("#view-admin");
