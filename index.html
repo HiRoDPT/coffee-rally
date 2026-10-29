@@ -233,9 +233,14 @@ function track(type,s,once,extra){
   if(!TRACK_URL)return;
   const sent=lsGet(FKEY,{}), key=typeof once==="string"?once:type;if(once&&sent[key])return;
   if(once){sent[key]=1;lsSet(FKEY,sent)}
-  const q=lsGet(QKEY,[]);q.push({id:anonId(),type,code:s?.code||"",shop:s?.shop||"",t:Date.now(),...(extra||{})});lsSet(QKEY,q.slice(-200));
-  flush();
+  // A newer note / time / profile replaces the one still waiting to be sent
+  const ev={id:anonId(),type,code:s?.code||"",shop:s?.shop||"",t:Date.now(),...(extra||{})}, same=x=>x.type===ev.type&&x.code===ev.code;
+  const q=lsGet(QKEY,[]).filter(x=>!(["note","time","profile"].includes(type)&&same(x)));q.push(ev);lsSet(QKEY,q.slice(-200));
+  // Events a few seconds apart go together in one send; leaving the page sends straight away
+  clearTimeout(flushTimer);
+  if(document.visibilityState==="hidden")flush();else flushTimer=setTimeout(flush,3000);
 }
+let flushTimer=null;
 let flushing=false;
 // Queued so scans made with no signal are sent once the phone is back online
 async function flush(){
@@ -243,7 +248,8 @@ async function flush(){
   const q=lsGet(QKEY,[]);if(!q.length)return;
   flushing=true;
   try{await fetch(TRACK_URL,{method:"POST",mode:"no-cors",keepalive:true,headers:{"Content-Type":"text/plain"},body:JSON.stringify({events:q})});
-    lsSet(QKEY,lsGet(QKEY,[]).slice(q.length))}
+    // Drop exactly what was sent: a newer note or time may have replaced an entry while sending
+    const sent=new Set(q.map(x=>JSON.stringify(x)));lsSet(QKEY,lsGet(QKEY,[]).filter(x=>!sent.has(JSON.stringify(x))))}
   catch(e){}
   flushing=false;
 }
