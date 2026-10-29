@@ -521,7 +521,7 @@ async function makeCert(n){
   const ink="#2a201b",roast="#5b3a28",stamp="#9a3a1c",leaf="#2e6b5a",muted="#7a6c62",gold="#b08a3e";
   // Canvas only gets a web font that has been loaded for the exact characters drawn
   const txt=`全店制覇飲み比べ達成認定証さまあなた${S.progress.certName||""}${GOAL}まめかけ認定`;
-  try{await Promise.all(["900","700","500"].map(w=>document.fonts.load(`${w} 40px "Noto Sans JP"`,txt+S.cfg.title+S.cfg.place+"制覇日達成日番号舗のコーヒーを飲み歩きごと全店制覇されましたここにその証として出店したで")));await document.fonts.ready}catch(e){}
+  try{await Promise.all(["900","700","500"].map(w=>document.fonts.load(`${w} 40px "Noto Sans JP"`,txt+S.cfg.title+S.cfg.place+"制覇日達成日番号舗のコーヒーを飲み歩き見事全店制覇されましたここにその証として出店したで")));await document.fonts.ready}catch(e){}
   const B='"Noto Sans JP","Hiragino Sans",sans-serif';
   g.fillStyle="#fbf6ec";g.fillRect(0,0,W,H);
   g.strokeStyle=gold;g.lineWidth=10;g.strokeRect(36,36,W-72,H-72);
@@ -533,8 +533,8 @@ async function makeCert(n){
   g.fillStyle=ink;g.font=`900 60px ${B}`;fitText(g,name?`${name} さま`:"あなた さま",W/2,385,W-240);
   g.strokeStyle=line2();g.lineWidth=2;g.beginPath();g.moveTo(220,410);g.lineTo(W-220,410);g.stroke();
   g.fillStyle=ink;g.font=`500 30px ${B}`;
-  (full?[`あなたは ${S.cfg.title} に出店した`,`全${all.length}店舗のコーヒーを飲み歩き`,"みごと全店制覇を達成されました","ここにその証として認定します"]
-    :[`あなたは ${S.cfg.title} で`,`${GOAL}店舗のコーヒーを飲み比べ`,"みごと飲み比べを達成されました","ここにその証として認定します"]).forEach((l,i)=>fitText(g,l,W/2,480+i*50,W-200));
+  (full?[`あなたは ${S.cfg.title} に出店した`,`全${all.length}店舗のコーヒーを飲み歩き`,"見事全店制覇を達成されました","ここにその証として認定します"]
+    :[`あなたは ${S.cfg.title} で`,`${GOAL}店舗のコーヒーを飲み比べ`,"見事飲み比べを達成されました","ここにその証として認定します"]).forEach((l,i)=>fitText(g,l,W/2,480+i*50,W-200));
   // every shop's logo, 6 per row
   const cols=full?6:5, R=full?58:72, gap=full?150:180, top=full?760:790;
   for(let i=0;i<all.length;i++){
