@@ -596,7 +596,9 @@ async function makeCert(n){
 function line2(){return "#d8c9a8"}
 // Phones: the share sheet's 「画像を保存」 puts the image in the Photos app (a plain download lands in Files on iPhone).
 // Other browsers fall back to a normal download
-function canSharePhoto(){try{return !!(navigator.canShare&&navigator.canShare({files:[new File([new Blob(["x"],{type:"image/png"})],"x.png",{type:"image/png"})]}))}catch(e){return false}}
+// Android's share sheet often has no "save to device", so Android downloads instead (it shows up in the gallery's Download album)
+const IS_ANDROID=/Android/i.test(navigator.userAgent);
+function canSharePhoto(){if(IS_ANDROID)return false;try{return !!(navigator.canShare&&navigator.canShare({files:[new File([new Blob(["x"],{type:"image/png"})],"x.png",{type:"image/png"})]}))}catch(e){return false}}
 async function saveImage(which){
   const items=lastBlobs[which];if(!items||!items.length)return;
   const m=$("#img-msg"+which), files=items.map(o=>new File([o.blob],o.name,{type:"image/png"}));
@@ -607,11 +609,11 @@ async function saveImage(which){
   }
   if(!window.__dl){m.textContent="画像を長押しして「写真に追加」を選んでください。";m.className="msg err";return}
   try{for(const o of items)await window.__dl.save({filename:o.name,data:o.blob});
-    m.textContent="保存しました。";m.className="msg ok"}
+    m.textContent=IS_ANDROID?"保存しました。ギャラリー（フォト）の「Download」に入っています。":"保存しました。";m.className="msg ok"}
   catch(e){m.textContent=e&&e.code==="declined"?"保存を取りやめました。":"保存できませんでした。画像を長押しして「写真に追加」を選んでください。";m.className="msg err"}
 }
 function saveHTML(n,label){return `${canSharePhoto()||window.__dl?`<button class="btn wide" id="save-img${n}">${label}を写真に保存する</button>`:""}
-    <p class="msg" style="font-size:12px">${canSharePhoto()?"ボタンを押して出てくるメニューで「画像を保存」を選ぶと、写真アプリに入ります。":"保存できないときは、画像を長押しして「写真に追加」（または「画像を保存」）を選んでください。"}</p>`}
+    <p class="msg" style="font-size:12px">${canSharePhoto()?"ボタンを押して出てくるメニューで「画像を保存」を選ぶと、写真アプリに入ります。":IS_ANDROID?"ボタンを押すとスマホ本体に保存され、ギャラリー（フォト）の「Download」に入ります。":"保存できないときは、画像を長押しして「写真に追加」（または「画像を保存」）を選んでください。"}</p>`}
 
 /* ---------- organizer ---------- */
 const COLS=["shop","bean","roast","notes","message"];
