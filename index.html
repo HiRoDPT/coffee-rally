@@ -344,12 +344,12 @@ const REGION_COL={"北海道":["#4a90c2","#e6f1fa","#7fb8de","雪と空のブル
   "四国":["#ee8a1e","#fff0dc","#2e6b5a","みかんのオレンジ"],"九州・沖縄":["#1f9aa5","#dcf3f4","#f2b134","南の海のエメラルド"],"海外":["#5b3a28","#f1e8df","#e0a03a","コーヒー豆のブラウン"]};
 // Each prefecture's specialty as a small badge on the avatar: [motif, label]
 const PREF_FEATURE={"北海道":["corn","とうもろこし"],"青森県":["apple","りんご"],"岩手県":["udon","わんこそば"],"宮城県":["fish","三陸の海の幸"],"秋田県":["rice","あきたこまち"],"山形県":["cherry","さくらんぼ"],"福島県":["peach","もも"],
-  "茨城県":["melon","メロン"],"栃木県":["strawberry","いちご"],"群馬県":["daruma","だるま"],"埼玉県":["tea","狭山茶"],"千葉県":["peanut","落花生"],"東京都":["tower","東京タワー"],"神奈川県":["wave","湘南の波"],
+  "茨城県":["melon","メロン"],"栃木県":["strawberry","いちご"],"群馬県":["daruma","だるま"],"埼玉県":["tea","狭山茶"],"千葉県":["peanut","落花生"],"東京都":["tower","東京タワー"],"神奈川県":["wave","湘南の海"],
   "新潟県":["rice","コシヒカリ"],"富山県":["fish","富山湾の魚"],"石川県":["crab","加能ガニ"],"福井県":["crab","越前ガニ"],"山梨県":["grape","ぶどう"],"長野県":["apple","りんご"],"岐阜県":["fish","鮎"],"静岡県":["fuji","富士山"],"愛知県":["ebi","エビフライ"],
   "三重県":["pearl","真珠"],"滋賀県":["lake","琵琶湖"],"京都府":["tea","宇治抹茶"],"大阪府":["takoyaki","たこ焼き"],"兵庫県":["castle","姫路城"],"奈良県":["deer","鹿"],"和歌山県":["mikan","みかん"],
   "鳥取県":["dune","鳥取砂丘"],"島根県":["torii","出雲大社"],"岡山県":["peach","白桃"],"広島県":["momiji","もみじ"],"山口県":["fugu","ふぐ"],
   "徳島県":["citrusG","すだち"],"香川県":["udon","讃岐うどん"],"愛媛県":["mikan","みかん"],"高知県":["citrusY","ゆず"],
-  "福岡県":["strawberry","あまおう"],"佐賀県":["plate","有田焼"],"長崎県":["castella","カステラ"],"熊本県":["watermelon","すいか"],"大分県":["onsen","温泉"],"宮崎県":["mango","マンゴー"],"鹿児島県":["imo","さつまいも"],"沖縄県":["hibiscus","ハイビスカス"],"海外":["globe","世界"]};
+  "福岡県":["strawberry","あまおう"],"佐賀県":["plate","有田焼"],"長崎県":["castella","カステラ"],"熊本県":["watermelon","すいか"],"大分県":["onsen","別府の温泉"],"宮崎県":["mango","マンゴー"],"鹿児島県":["imo","さつまいも"],"沖縄県":["beach","沖縄の海"],"海外":["globe","世界"]};
 // Motifs drawn around (0,0) in about a 40px box, in the same outlined style as the cup
 function motifSVG(m){
   const o=`stroke="#2a201b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"`, leaf=(x,y,r)=>`<path d="M${x} ${y}c6-8 14-6 14-6c-2 8-8 10-14 6z" fill="#5a9a3a" ${o} transform="rotate(${r||0} ${x} ${y})"/>`;
@@ -395,6 +395,23 @@ function motifSVG(m){
     rice:`<path d="M0 18c0-12-2-20-8-28" fill="none" stroke="#c9a227" stroke-width="2.5"/>${[[-7,-12],[-4,-6],[-2,0],[-9,-4],[2,-8],[0,6]].map(([x,y],i)=>`<ellipse cx="${x}" cy="${y}" rx="3" ry="5" fill="#f6d06a" stroke="#2a201b" stroke-width="2" transform="rotate(${i%2?30:-30} ${x} ${y})"/>`).join("")}`
   })[m]||"";
 }
+// Places: the character stands in the scene. [back layers, front layers drawn over the character]
+const SCENES={
+  dune:()=>[`<rect width="200" height="200" fill="#bfe3f5"/><circle cx="150" cy="44" r="16" fill="#f6b23a"/><path d="M-10 120c40-40 80-50 120-30c30 14 60 10 100 0v120H-10z" fill="#f0d39a"/><path d="M-10 150c50-30 120-30 220-6v70H-10z" fill="#e8c27a"/>
+    <path d="M40 104c0-5 3-7 5-4c1-3 5-3 6 0l3-5c1-2 4-2 4 0l-3 8v5h-2v-4h-8v4h-2v-4z" fill="#7a4a2a"/><path d="M64 108c0-4 2-5 4-3c1-2 4-2 5 0l2-4c1-1 3-1 3 0l-2 6v4h-2v-3h-6v3h-2z" fill="#7a4a2a"/>
+    <path d="M30 168c30-8 60-8 90-2" fill="none" stroke="#c99a4a" stroke-width="3" stroke-linecap="round"/>`,""],
+  fuji:()=>[`<rect width="200" height="200" fill="#cfe8f7"/><path d="M-10 140l80-90h60l80 90z" fill="#5b7fb5"/><path d="M70 50h60l18 22-12-6-10 8-10-8-12 8-10-8-12 6z" fill="#fff"/><path d="M-10 140h220v70H-10z" fill="#9cc96b"/><path d="M-10 140c60-10 150-10 220 0" fill="none" stroke="#7aab4c" stroke-width="3"/>`,""],
+  tower:()=>[`<rect width="200" height="200" fill="#d6ecfa"/><path d="M0 150v-30h22v-14h20v44zM150 150v-40h18v-10h20v50z" fill="#b8c6d6"/><path d="M168 18l-18 132h36z" fill="#e8483c"/><path d="M158 80h20M155 104h26M161 58h14M163 40h10" stroke="#fff" stroke-width="4"/><path d="M168 18v-10" stroke="#e8483c" stroke-width="3"/><path d="M-10 150h220v60H-10z" fill="#c9ced6"/>`,""],
+  wave:()=>[`<rect width="200" height="200" fill="#d6ecfa"/><path d="M-10 118h220v40H-10z" fill="#3f88c5"/><path d="M110 118c4-40 50-60 80-40c-22-4-34 10-28 24c6 12 22 10 26-2c8 10 4 22-8 18z" fill="#2f6fa8"/><path d="M128 92c6-6 14-8 22-6" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M-10 150h220v60H-10z" fill="#f0d9a8"/><path d="M-10 150c40-6 80 6 120 0s70-6 100 0" fill="none" stroke="#fff" stroke-width="4"/>`,""],
+  beach:()=>[`<rect width="200" height="200" fill="#bfe8f2"/><path d="M-10 112h220v40H-10z" fill="#2fb3c0"/><path d="M-10 128h220" stroke="#8fe0e6" stroke-width="3"/><path d="M-10 148c60-10 140-10 220 0v62H-10z" fill="#f6e3b4"/>
+    <path d="M30 150c4-30 0-60-8-80" fill="none" stroke="#8a5a2a" stroke-width="6" stroke-linecap="round"/><path d="M22 70c-16-6-30 0-34 8c12-6 22-4 34-8zM22 70c-6-14 0-26 10-30c-4 10-6 18-10 30zM22 70c16-6 30-2 36 8c-12-4-24-6-36-8zM22 70c6 12 4 24-2 30c0-10 0-20 2-30z" fill="#3a9a4a"/>
+    <g transform="translate(176 150)">${[0,72,144,216,288].map(a=>`<ellipse cy="-8" rx="6" ry="9" fill="#e8343c" transform="rotate(${a})"/>`).join("")}<circle r="3.5" fill="#f6d23a"/></g>`,""],
+  lake:()=>[`<rect width="200" height="200" fill="#d6ecfa"/><path d="M-10 110l40-30 30 20 40-34 50 30 60-10v40H-10z" fill="#7aa36a"/><path d="M-10 112h220v40H-10z" fill="#5a9ad6"/><path d="M20 126h40M110 136h50M60 144h30" stroke="#cfe6fa" stroke-width="3" stroke-linecap="round"/><path d="M-10 150h220v60H-10z" fill="#a8d07a"/>`,""],
+  torii:()=>[`<rect width="200" height="200" fill="#e8f2e0"/><path d="M-10 150h220v60H-10z" fill="#d8cbb4"/><path d="M14 30c56 10 116 10 172 0l-6 14H20z" fill="#d9382c"/><path d="M28 56h144" stroke="#d9382c" stroke-width="10"/><path d="M42 50v110M158 50v110" stroke="#d9382c" stroke-width="12" stroke-linecap="round"/><path d="M14 30c56 10 116 10 172 0" fill="none" stroke="#2a201b" stroke-width="5"/><path d="M60 34c0 8 0 12-2 18M140 34c0 8 0 12 2 18" stroke="#2a201b" stroke-width="2"/><path d="M84 40h32v12H84z" fill="#2a201b"/>`,""],
+  castle:()=>[`<rect width="200" height="200" fill="#d6ecfa"/><g transform="translate(150 40)"><path d="M-30 100v-30h60v30z" fill="#fff" stroke="#2a201b" stroke-width="2"/><path d="M-36 72l8-12h56l8 12z" fill="#6f8191"/><path d="M-22 60v-16h44v16z" fill="#fff" stroke="#2a201b" stroke-width="2"/><path d="M-28 46l6-10h44l6 10z" fill="#6f8191"/><path d="M-12 36v-12h24v12z" fill="#fff" stroke="#2a201b" stroke-width="2"/><path d="M-18 26l6-10h24l6 10z" fill="#6f8191"/></g><path d="M-10 140h220v70H-10z" fill="#9cc96b"/><path d="M100 140h100v-4H100z" fill="#8a8a8a"/>`,""],
+  onsen:()=>[`<rect width="200" height="200" fill="#e9e2d6"/><path d="M-10 96c30-10 50-6 70 0" fill="none" stroke="#fff" stroke-width="6" opacity=".7"/><path d="M40 70c-8-10 8-14 0-26M160 64c-8-10 8-14 0-26" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".8"/><ellipse cx="30" cy="130" rx="22" ry="14" fill="#8a8a8a"/><ellipse cx="176" cy="126" rx="20" ry="13" fill="#9a9a9a"/>`,
+    `<path d="M-10 146c50-10 170-10 220 0v64H-10z" fill="#8fd0dc" opacity=".92"/><path d="M20 160c10-4 20 4 30 0M120 166c10-4 20 4 30 0" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/><ellipse cx="18" cy="150" rx="18" ry="10" fill="#8a8a8a"/><ellipse cx="186" cy="152" rx="18" ry="10" fill="#8a8a8a"/>`]
+};
 // Drawn in the まめかけ logo's style: white cup, dark hand-drawn outline, dot eyes.
 // 女性 = the logo's cup with coffee beans popping out; 男性 = a cup with a pour-over dripper on top; 答えない = a plain mug.
 // The region of the chosen prefecture sets the colours, age group adds a small extra, and the anonymous id varies the face
@@ -443,8 +460,16 @@ function avatarSVG(p,seed){
     "40代":`<path d="M${fx-24} ${fy-12}h14M${fx+10} ${fy-12}h14" stroke="${ink}" stroke-width="3.5" stroke-linecap="round"/>`,
     "50代":`<path d="M30 176h140" stroke="${ink}" stroke-width="5" stroke-linecap="round"/><path d="M150 172l20-26" stroke="${ink}" stroke-width="4" stroke-linecap="round"/><ellipse cx="172" cy="142" rx="6" ry="9" transform="rotate(38 172 142)" fill="#fff" ${L}/>`,
     "60代以上":`<circle cx="${fx-16}" cy="${fy}" r="10" fill="none" stroke="${ink}" stroke-width="3"/><circle cx="${fx+16}" cy="${fy}" r="10" fill="none" stroke="${ink}" stroke-width="3"/><path d="M${fx-6} ${fy}h12" stroke="${ink}" stroke-width="3"/>`}[p.age]||"";
-  const feat=PREF_FEATURE[p.pref], badge=feat?`<g transform="translate(158 156)"><circle r="33" fill="#fff" stroke="${col}" stroke-width="4"/><g transform="scale(1.1)">${motifSVG(feat[0])}</g></g>`:"";
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><circle cx="100" cy="100" r="100" fill="${bg}"/>${cup}${face}${ex}${badge}</svg>`;
+  // One picture: in a famous place the character stands in that scene; with a specialty it poses next to it
+  const feat=PREF_FEATURE[p.pref], who=`${cup}${face}${ex}`, uid="c"+(n%100000);
+  let art;
+  if(feat&&SCENES[feat[0]]){const [back,front]=SCENES[feat[0]]();
+    art=`${back}<g transform="translate(34 ${feat[0]==="onsen"?38:52}) scale(.66)">${who}</g>${front}`}
+  else if(feat){const handleLeft=p.sex==="女性", cx=handleLeft?14:52, mx=handleLeft?160:40;
+    art=`<rect width="200" height="200" fill="${bg}"/><path d="M-10 160c60-8 160-8 220 0v50H-10z" fill="${col}" opacity=".18"/>
+      <g transform="translate(${cx} 46) scale(.68)">${who}</g><ellipse cx="${mx}" cy="168" rx="26" ry="5" fill="#2a201b" opacity=".12"/><g transform="translate(${mx} 140) scale(1.5)">${motifSVG(feat[0])}</g>`}
+  else art=`<rect width="200" height="200" fill="${bg}"/>${who}`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><defs><clipPath id="${uid}"><circle cx="100" cy="100" r="100"/></clipPath></defs><g clip-path="url(#${uid})">${art}</g></svg>`;
 }
 function avatarURL(){const p=S.progress.profile;return p&&p.age?"data:image/svg+xml;charset=utf-8,"+encodeURIComponent(avatarSVG(p,anonId())):""}
 let profDraft=null;
@@ -454,8 +479,8 @@ function profileHTML(){
   const group=(label,key,list)=>`<div class="field"><span>${label}</span><div class="chips">${list.map(v=>`<button type="button" class="chip ${d[key]===v?"on":""}" data-prof="${key}" data-v="${v}">${v}</button>`).join("")}</div></div>`;
   return `<div class="eyebrow">MY AVATAR</div><h3>あなたのアバターを作ろう</h3>
     <div class="avatar-pre${ready?"":" ghost"}">${svg}</div>
-    ${reg?`<p class="msg" style="text-align:center;margin:-6px 0 0">${esc(reg==="海外"?"海外":reg+"地方")}カラー：${REGION_COL[reg][3]}<br>${esc(d.pref)}のバッジ：${PREF_FEATURE[d.pref][1]}</p>`:""}
-    <p class="note">年代・性別・お住まいを選ぶと、あなただけのコーヒーキャラができます。色はお住まいの地方で、バッジは都道府県の名物で変わります。台紙と認定証に載ります。答えは匿名で集計し、今後のイベントづくりに使います。</p>
+    ${reg?`<p class="msg" style="text-align:center;margin:-6px 0 0">${esc(reg==="海外"?"海外":reg+"地方")}カラー：${REGION_COL[reg][3]}<br>${esc(d.pref)}：${PREF_FEATURE[d.pref][1]}${SCENES[PREF_FEATURE[d.pref][0]]?"にいるあなた":"と一緒のあなた"}</p>`:""}
+    <p class="note">年代・性別・お住まいを選ぶと、あなただけのコーヒーキャラができます。色はお住まいの地方で変わり、都道府県の名所や名物と一緒に描かれます。台紙と認定証に載ります。答えは匿名で集計し、今後のイベントづくりに使います。</p>
     ${group("年代","age",AGES)}${group("性別","sex",SEXES)}
     <div class="grid2"><label class="field"><span>都道府県</span><select id="prof-pref"><option value="">選んでください</option>${PREFS.map(v=>`<option ${d.pref===v?"selected":""}>${v}</option>`).join("")}</select></label>
     <label class="field"><span>市区町村（任意）</span><input id="prof-city" type="text" maxlength="20" placeholder="例：琴浦町" value="${esc(d.city||"")}"></label></div>
