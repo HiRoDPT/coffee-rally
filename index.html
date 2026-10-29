@@ -605,7 +605,7 @@ async function certBack(all,B){
   const logo=await loadImg(EVENT_LOGO);
   let y=logo?130:150;
   g.fillStyle=gold;g.font=`700 28px ${B}`;g.fillText("THANK YOU FOR VISITING",W/2,y);
-  if(logo){const L=200, sc=Math.min(L/logo.width,L/logo.height);g.drawImage(logo,W/2-logo.width*sc/2,y+30+(L-logo.height*sc)/2,logo.width*sc,logo.height*sc);y+=30+L+10}
+  if(logo){const L=230, sc=Math.min(L/logo.width,L/logo.height);g.drawImage(logo,W/2-logo.width*sc/2,y+30+(L-logo.height*sc)/2,logo.width*sc,logo.height*sc);y+=30+L+10}
   else y+=40;
   g.fillStyle=roast;g.font=`900 76px ${B}`;fitText(g,S.cfg.title,W/2,y+70,W-180);
   g.fillStyle=muted;g.font=`500 30px ${B}`;fitText(g,`${S.cfg.date} ／ ${S.cfg.place}`,W/2,y+125,W-180);
