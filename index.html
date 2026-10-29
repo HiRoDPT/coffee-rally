@@ -142,7 +142,7 @@ label.file input{position:absolute;opacity:0;width:1px;height:1px}
   <div class="panel" id="inapp" hidden style="border-color:var(--stamp)">
     <h3>スマホのブラウザで開いてください</h3>
     <p class="msg">いまはアプリの中の画面で開いています。このままだとスタンプが消えることがあります。画面の「︙」や共有ボタンから「ブラウザで開く」（iPhoneはSafari、AndroidはChrome）を選んでください。</p>
-    <div class="row"><button class="btn" id="copy-link">リンクをコピー</button><span class="msg" id="copy-msg"></span></div>
+    <div class="row"><a class="btn" id="open-safari" hidden>Safariで開く</a><button class="btn" id="copy-link">リンクをコピー</button><span class="msg" id="copy-msg"></span></div>
   </div>
   <p class="note" id="mode-note" hidden></p>
   <section id="view-play" class="wrap"></section>
@@ -1212,7 +1212,31 @@ $("#copy-link").addEventListener("click",async()=>{
   catch(e){$("#copy-msg").textContent=url}
 });
 
+/* ---------- open in the phone's own browser ---------- */
+// The progress lives in the browser's storage, so a QR reader's in-app view (iPhone コードスキャナー, LINE, Instagram...)
+// would keep stamps apart from Safari/Chrome. LINE honours openExternalBrowser=1; iOS 17+ honours x-safari-https://.
+const UA=navigator.userAgent, IOS_MAJOR=+((UA.match(/iPhone OS (\d+)|iPad.*? OS (\d+)/)||[])[1]||0);
+const SAFARI_LIKE=IOS_MAJOR>=17&&!/CriOS|FxiOS|EdgiOS|OPiOS/.test(UA);
+function safariURL(){const u=new URL(location.href);u.searchParams.set("es","1");return "x-safari-"+u.href}
+if(SAFARI_LIKE){const a=$("#open-safari");a.href=safariURL();a.hidden=false}
+function escapeOrBoot(){
+  const sp=new URLSearchParams(location.search);
+  if(location.hash==="#admin")return boot();
+  if(/Line\//.test(UA)&&!sp.has("openExternalBrowser")){const u=new URL(location.href);u.searchParams.set("openExternalBrowser","1");location.replace(u.href);return setTimeout(boot,2500)}
+  if(sp.get("es")==="1"){lsSet("inSafari",1);sp.delete("es");history.replaceState(null,"",location.pathname+(sp.toString()?"?"+sp:"")+location.hash);return boot()}
+  // Safari itself carries the flag after the first hop, so only other views (コードスキャナー) are sent on
+  if(!SAFARI_LIKE||lsGet("inSafari",0))return boot();
+  let left=false;const away=()=>{if(document.visibilityState==="hidden")left=true};
+  document.addEventListener("visibilitychange",away);
+  location.href=safariURL();
+  setTimeout(()=>{document.removeEventListener("visibilitychange",away);
+    // Handed over to Safari: this view only says where to look
+    if(left){$("#view-play").innerHTML=`<div class="panel"><h3>Safariで開きました</h3><p class="msg">スタンプはSafariの画面に載っています。この画面は閉じてください。</p><a class="btn" href="${safariURL()}">もう一度Safariで開く</a></div>`;return}
+    lsSet("inSafari",1);boot()},1500);
+}
+
 /* ---------- boot ---------- */
+function boot(){
 lload();
 {const pp=pload();if(pp)S.progress=mergeProgress(S.progress,pp)}
 // Avatars made before prefectures were asked are made again
@@ -1252,6 +1276,8 @@ show("play");
   },()=>{loaded.progress=true;tryArrive()});
   if(tab!=="play")show(tab);
 })();
+}
+escapeOrBoot();
 </script>
 
 </body>
