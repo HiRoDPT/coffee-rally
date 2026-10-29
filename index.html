@@ -79,6 +79,12 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{font:500 13px var(--body);border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:99px;padding:5px 12px;cursor:pointer}
 .chip.on{background:var(--roast);border-color:var(--roast);color:var(--paper)}
+.me{display:flex;align-items:center;gap:12px;background:var(--bg);border-radius:14px;padding:8px 10px}
+.me img,.me-add{width:52px;height:52px;border-radius:50%;flex:none}
+.me-add{border:2px dashed var(--line);display:grid;place-items:center;color:var(--muted);font-weight:700}
+.me>span:nth-child(2){flex:1;font-size:13px;font-weight:700;color:var(--ink)}.me small{display:block;font-weight:500;color:var(--muted)}
+.me .btn{padding:6px 14px}
+.avatar-pre{width:140px;height:140px;margin:0 auto}.avatar-pre svg{width:100%;height:100%}.avatar-pre.ghost{opacity:.35}
 .name-in{font-weight:700}
 .mini{color:var(--stamp);font-size:11px;letter-spacing:1px}
 .tag{display:inline-block;font-size:11px;font-weight:700;border-radius:99px;padding:1px 9px;background:var(--soft);color:var(--muted)}
@@ -278,7 +284,7 @@ function saveProgress(){
   return chain;
 }
 function mergeProgress(a,b){
-  const out={...a,stamps:{...(b.stamps||{})},extra:{...(b.extra||{}),...(a.extra||{})}};
+  const out={...b,...a,stamps:{...(b.stamps||{})},extra:{...(b.extra||{}),...(a.extra||{})}};
   for(const [k,v] of Object.entries(a.stamps||{})){const o=out.stamps[k];out.stamps[k]=o?{...v,...o,tastes:o.tastes?.length?o.tastes:v.tastes}:v}
   return out;
 }
@@ -328,6 +334,57 @@ function certHTML(n,title,lead){return `<div class="cert">
       <p class="msg" id="img-msg${n}"></p>
       <div id="img-box${n}"></div>
     </div>`}
+/* ---------- avatar: chosen age group, gender and area turn into a coffee character ---------- */
+const AGES=["10代以下","20代","30代","40代","50代","60代以上"], SEXES=["女性","男性","答えない"];
+const AREAS=["琴浦町","北栄町","湯梨浜町","三朝町","倉吉市","鳥取市","米子市","境港市","そのほかの県内","県外"];
+// Area sets the colours: [cup, background, accent]
+const AREA_COL={"琴浦町":["#c8553d","#fde8df","#2e6b5a"],"北栄町":["#e0a03a","#fdf1d8","#5b3a28"],"湯梨浜町":["#3f88c5","#e1effa","#c8553d"],"三朝町":["#8a5a9e","#f1e6f6","#e0a03a"],
+  "倉吉市":["#2e6b5a","#e0f1ea","#c8553d"],"鳥取市":["#d98c2b","#fbeedc","#3f88c5"],"米子市":["#4f7cac","#e4edf7","#e0a03a"],"境港市":["#2f8f9d","#ddf2f4","#c8553d"],
+  "そのほかの県内":["#7a8b3a","#eef2dc","#5b3a28"],"県外":["#5b3a28","#f1e8df","#e0a03a"]};
+function avatarSVG(p,seed){
+  if(!p||!p.age)return "";
+  const [cup,bg,acc]=AREA_COL[p.area]||AREA_COL["県外"], dark="#3b2a20", cream="#fff7ea";
+  let n=0;for(const ch of String(seed||""))n=(n*31+ch.charCodeAt(0))>>>0;
+  const happy=n%2===0, open=(n>>1)%3===0;
+  let body="", top=70, faceY=118;
+  switch(p.age){
+    case "10代以下":body=`<rect x="52" y="80" width="96" height="80" rx="22" fill="${cup}"/><path d="M148 98c26 0 26 44 0 44" stroke="${cup}" stroke-width="12" fill="none"/>
+      <ellipse cx="100" cy="82" rx="46" ry="10" fill="#7b4a2e"/><rect x="72" y="66" width="18" height="16" rx="4" fill="${cream}"/><rect x="96" y="62" width="18" height="16" rx="4" fill="#ffd6e0"/><rect x="118" y="68" width="16" height="14" rx="4" fill="${cream}"/>`;top=60;faceY=122;break;
+    case "20代":body=`<path d="M58 72h84l-12 92H70z" fill="${cup}"/><rect x="52" y="60" width="96" height="16" rx="6" fill="${dark}"/><rect x="66" y="50" width="68" height="14" rx="6" fill="${dark}"/>
+      <path d="M62 104h76l-3 26H65z" fill="${cream}" opacity=".9"/>`;top=48;faceY=118;break;
+    case "30代":body=`<ellipse cx="100" cy="164" rx="70" ry="10" fill="${cream}" stroke="${dark}" stroke-width="3"/><path d="M40 86h120c0 52-26 72-60 72s-60-20-60-72z" fill="${cup}"/>
+      <path d="M158 100c22 0 20 32-6 32" stroke="${cup}" stroke-width="10" fill="none"/><ellipse cx="100" cy="86" rx="60" ry="10" fill="#e8c9a0"/><path d="M92 82c0-6 8-6 8 0c0-6 8-6 8 0c0 5-8 8-8 10c0-2-8-5-8-10z" fill="${cream}"/>`;top=74;faceY=118;break;
+    case "40代":body=`<rect x="58" y="62" width="84" height="102" rx="14" fill="${cup}"/><path d="M142 84c30 0 30 52 0 52" stroke="${cup}" stroke-width="12" fill="none"/><ellipse cx="100" cy="64" rx="42" ry="8" fill="#5a3522"/>`;top=54;faceY=116;break;
+    case "50代":body=`<ellipse cx="100" cy="162" rx="64" ry="11" fill="${cream}" stroke="${dark}" stroke-width="3"/><path d="M56 82h88l-8 62c-2 10-10 16-20 16H84c-10 0-18-6-20-16z" fill="${cup}"/>
+      <path d="M142 96c20 0 18 30-4 30" stroke="${cup}" stroke-width="9" fill="none"/><ellipse cx="100" cy="82" rx="44" ry="8" fill="#5a3522"/>`;top=70;faceY=120;break;
+    default:body=`<path d="M60 70h80l-6 90c-1 6-6 8-12 8H78c-6 0-11-2-12-8z" fill="${cup}"/><ellipse cx="100" cy="70" rx="40" ry="8" fill="#5a3522"/>
+      <path d="M74 52c-8-10 8-14 0-26M100 50c-8-10 8-14 0-26M126 52c-8-10 8-14 0-26" stroke="#c9b8a8" stroke-width="4" fill="none" stroke-linecap="round"/>`;top=40;faceY=116;
+  }
+  const extra=p.sex==="女性"?`<g transform="translate(64 ${top-4})"><circle r="7" cx="0" cy="-8" fill="${acc}"/><circle r="7" cx="8" cy="0" fill="${acc}"/><circle r="7" cx="0" cy="8" fill="${acc}"/><circle r="7" cx="-8" cy="0" fill="${acc}"/><circle r="5" fill="#ffe28a"/></g>`
+    :p.sex==="男性"?`<g transform="translate(132 ${top-6}) rotate(20)"><path d="M0 0c-18-4-22-20-8-26c10 6 12 18 8 26z" fill="${acc}"/><path d="M0 0c4-10 8-16 14-20" stroke="${dark}" stroke-width="2" fill="none"/></g>`
+    :`<path transform="translate(134 ${top-10})" d="M0-12l3.5 7.5 8 1-6 5.5 1.5 8L0 6l-7 4 1.5-8-6-5.5 8-1z" fill="${acc}"/>`;
+  const eyes=happy?`<path d="M80 ${faceY}q6-8 12 0M108 ${faceY}q6-8 12 0" stroke="${dark}" stroke-width="4" fill="none" stroke-linecap="round"/>`
+    :`<circle cx="86" cy="${faceY-2}" r="5" fill="${dark}"/><circle cx="114" cy="${faceY-2}" r="5" fill="${dark}"/>`;
+  const mouth=open?`<path d="M92 ${faceY+12}q8 12 16 0z" fill="${dark}"/>`:`<path d="M90 ${faceY+12}q10 10 20 0" stroke="${dark}" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><circle cx="100" cy="100" r="100" fill="${bg}"/>${body}${extra}${eyes}${mouth}
+    <circle cx="74" cy="${faceY+12}" r="7" fill="#ff9aa8" opacity=".55"/><circle cx="126" cy="${faceY+12}" r="7" fill="#ff9aa8" opacity=".55"/></svg>`;
+}
+function avatarURL(){const p=S.progress.profile;return p&&p.age?"data:image/svg+xml;charset=utf-8,"+encodeURIComponent(avatarSVG(p,anonId())):""}
+let profDraft=null;
+function profileHTML(){
+  const d=profDraft||{...(S.progress.profile||{})}, svg=avatarSVG(d.age?d:{age:"20代",sex:d.sex||"答えない",area:d.area||"琴浦町"},anonId());
+  const group=(label,key,list)=>`<div class="field"><span>${label}</span><div class="chips">${list.map(v=>`<button type="button" class="chip ${d[key]===v?"on":""}" data-prof="${key}" data-v="${v}">${v}</button>`).join("")}</div></div>`;
+  return `<div class="eyebrow">MY AVATAR</div><h3>あなたのアバターを作ろう</h3>
+    <div class="avatar-pre${d.age?"":" ghost"}">${svg}</div>
+    <p class="note">年代・性別・お住まいのエリアを選ぶと、あなただけのコーヒーキャラができます。台紙と認定証に載ります。答えは匿名で集計し、今後のイベントづくりに使います。</p>
+    ${group("年代","age",AGES)}${group("性別","sex",SEXES)}${group("お住まいのエリア","area",AREAS)}
+    <div class="row"><button class="btn" id="prof-save" ${d.age&&d.sex&&d.area?"":"disabled"}>このアバターにする</button><button class="btn ghost" id="prof-skip">${S.progress.profile?"やめる":"あとで"}</button></div>`;
+}
+function renderProfile(){
+  const el=$("#play-profile");if(!el)return;
+  const show=profDraft!==null||(!S.progress.profile&&!S.progress.profileSkip);
+  el.hidden=!show;if(show)el.innerHTML=profileHTML();
+}
 // Card 1 holds the first GOAL shops collected; card 2 (全店制覇) opens once card 1 is full and lists every shop
 function renderPlay(){
   const {all,list,demo}=shops(), k=list.length, total=all.length, complete=total>0&&k>=total;
@@ -335,6 +392,8 @@ function renderPlay(){
   const empty=`<button class="slot empty" data-scan aria-label="押すとQRを読み込みます"><div class="ph todo">？</div><b>ここを押して</b><small>QRを読み込む</small></button>`;
   $("#play-card").innerHTML=`
     <div class="head"><div class="eyebrow">COFFEE STAMP RALLY ・ 1枚目</div><h2>${esc(S.cfg.title)}</h2><p>${esc(S.cfg.date)} ／ ${esc(S.cfg.place)}</p></div>
+    ${S.progress.profile?`<div class="me"><img src="${avatarURL()}" alt="あなたのアバター"><span>あなたのアバター<small>${esc(S.progress.profile.age)}・${esc(S.progress.profile.area)}</small></span><button class="btn ghost" id="prof-edit">変える</button></div>`
+      :S.progress.profileSkip?`<div class="me"><span class="me-add">？</span><span>アバターはまだありません</span><button class="btn ghost" id="prof-edit">作る</button></div>`:""}
     ${demo?`<p class="note">コーヒーショップがまだ台紙に載っていないので、<span class="tag demo">見本</span>の5店で試せます。各店のQRは「主催者」タブに出ています。</p>`:""}
     ${total>GOAL?`<p class="note">好きなお店を${GOAL}店舗回って飲み比べ。${GOAL}店舗そろうと「飲み比べ達成認定証」がもらえて、2枚目の「全店制覇」台紙が開きます。</p>`:""}
     <div class="meter"><div class="bar"><i style="width:${k1/GOAL*100}%"></i></div>${k1} / ${GOAL} 杯</div>
@@ -384,12 +443,17 @@ function renderSheet(){
     ${st?`<p class="msg" style="font-size:12px">間違えて読んだときは取り消すと、台紙の枠が空きます。</p>`:""}`;
 }
 function viewPlay(){
-  $("#view-play").innerHTML=`<div class="panel arrive" id="play-arrive" hidden></div><div class="panel" id="play-card"></div><div class="panel" id="play-card2" hidden></div><div class="panel sheet" id="play-sheet" hidden></div>`;
-  renderArrive();renderPlay();renderSheet();
+  $("#view-play").innerHTML=`<div class="panel arrive" id="play-arrive" hidden></div><div class="panel" id="play-profile" hidden></div><div class="panel" id="play-card"></div><div class="panel" id="play-card2" hidden></div><div class="panel sheet" id="play-sheet" hidden></div>`;
+  renderArrive();renderProfile();renderPlay();renderSheet();
 }
 $("#view-play").addEventListener("click",async e=>{
   const t=e.target;
   const o=t.closest("[data-open]");
+  if(t.dataset.prof){profDraft=profDraft||{...(S.progress.profile||{})};profDraft[t.dataset.prof]=t.dataset.v;renderProfile();return}
+  if(t.id==="prof-save"&&profDraft){S.progress.profile={age:profDraft.age,sex:profDraft.sex,area:profDraft.area};profDraft=null;await saveProgress();
+    track("profile",null,false,{what:`${S.progress.profile.age}・${S.progress.profile.sex}・${S.progress.profile.area}`});renderProfile();renderPlay();return}
+  if(t.id==="prof-skip"){if(!S.progress.profile){S.progress.profileSkip=true;await saveProgress()}profDraft=null;renderProfile();renderPlay();return}
+  if(t.id==="prof-edit"){profDraft={...(S.progress.profile||{})};renderProfile();$("#play-profile").scrollIntoView({behavior:"smooth",block:"start"});return}
   if(o){openId=o.dataset.open;{const s=shops().all.find(x=>x.id===openId);if(s)track("view",s,"view-"+s.code)}renderSheet();$("#play-sheet").scrollIntoView({behavior:"smooth",block:"nearest"});return}
   if(t.id==="close"){openId=null;renderSheet();return}
   // Two taps so a stray tap doesn't wipe a stamp and its notes
@@ -505,6 +569,7 @@ async function makeImage(which){
   const fav=rated[0];
   fitText(g,fav?`いちばん好きだったのは ${fav.shop.replace(/^見本：/,"")}${S.progress.stamps[fav.id].memo?"「"+S.progress.stamps[fav.id].memo+"」":""}`:"星をつけると、お気に入りがここに入ります",W/2,1228,W-160);
   const d=new Date();g.fillStyle=muted;g.font=`500 20px ${B}`;g.fillText(`${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} 作成`,W/2,1275);
+  await drawAvatar(g,W-176,64,112);
   // Separate images: the card, then the notes for shops 1-5, then (card 2) shops 6 and up
   const colors={ink,roast,stamp,leaf,muted,line,D,B}, stem=which===1?"collection":"all-shops", day=`${d.getMonth()+1}${String(d.getDate()).padStart(2,"0")}`;
   const out=[{blob:await toBlob(c),name:`coffee-${stem}-${day}-1.png`}];
@@ -519,6 +584,9 @@ async function makeImage(which){
     ${saveHTML(which,out.length>1?`${out.length}枚の画像`:"画像")}`;
   $("#img-msg"+which).textContent=out.length>1?`台紙とメモの${out.length}枚に分かれています。`:"これが今のあなたのコレクションです。";$("#img-msg"+which).className="msg ok";
 }
+// The visitor's avatar in a white ring, when they made one
+async function drawAvatar(g,x,y,size){const u=avatarURL();if(!u)return;const im=await loadImg(u);if(!im)return;
+  g.save();g.beginPath();g.arc(x+size/2,y+size/2,size/2+5,0,Math.PI*2);g.fillStyle="#fff";g.fill();g.drawImage(im,x,y,size,size);g.restore()}
 function toBlob(c){return new Promise(r=>c.toBlob(r,"image/png"))}
 // One image of tasting notes, same size as the card image: shops in two columns, each cell sized to fit
 async function notesCanvas(list,label,W,paper,c){
@@ -615,6 +683,7 @@ async function makeCert(n){
   g.fillText(`${full?"制覇日":"達成日"}　${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`,130,by+20);
   g.fillText(`認定番号　No.${anonId().slice(-6).toUpperCase()}`,130,by+66);
   g.fillText(S.cfg.place,130,by+112);
+  await drawAvatar(g,500,by-30,130);
   // red seal
   const sx=W-230, sy=by+50;
   g.save();g.translate(sx,sy);g.rotate(-0.18);
