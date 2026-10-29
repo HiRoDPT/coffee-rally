@@ -369,7 +369,7 @@ function renderSheet(){
       <label class="field"><span>感想</span><textarea id="memo" maxlength="80" placeholder="例：酸味が爽やか。また飲みたい">${esc(st.memo||"")}</textarea></label>
       <div class="field"><span>写真（お店・コーヒー・商品など）</span>
         ${st.photo?`<img class="memo-photo" src="${st.photo}" alt="${esc(s.shop)}の写真">`:""}
-        <div class="row"><label class="btn ghost file photo-btn">写真を撮る<input id="n-photo-cam" type="file" accept="image/*" capture="environment"></label><label class="btn ghost file photo-btn">アルバムから選ぶ<input id="n-photo" type="file" accept="image/*"></label>${st.photo?`<button class="btn ghost" id="del-photo">写真を消す</button>`:""}<span class="msg" id="photo-msg"></span></div></div>
+        <div class="row"><label class="btn ghost file photo-btn">写真を撮る<input id="n-photo-cam" type="file" accept="image/*" capture="environment"></label><label class="btn ghost file photo-btn">アルバムから選ぶ<input id="n-photo" type="file" accept="image/*"></label>${st.photo?`<button class="btn ghost" id="save-photo">印を入れて写真に保存</button><button class="btn ghost" id="del-photo">写真を消す</button>`:""}<span class="msg" id="photo-msg"></span></div></div>
       <div class="row"><button class="btn" id="save-memo">メモを保存</button><span class="msg" id="memo-msg"></span></div>`:`
       <p class="note">お店に置いてあるQRコードをスマホのカメラで読み取ると、このマスにお店のロゴのスタンプが載ります。</p>`}
     <div class="row"><button class="btn ghost" id="close">台紙に戻る</button>${st?`<button class="btn ghost" id="unstamp">このスタンプを取り消す</button>`:""}</div>
@@ -398,6 +398,7 @@ $("#view-play").addEventListener("click",async e=>{
   if(t.id==="make-img1"||t.id==="make-img2"){await makeImage(+t.id.slice(-1));return}
   if(t.id==="make-img3"||t.id==="make-img4"){const n=+t.id.slice(-1);S.progress.certName=$("#cert-name"+n).value.trim().slice(0,16);await saveProgress();await makeCert(n);return}
   if(/^save-img[1-4]$/.test(t.id)){await saveImage(+t.id.slice(-1));return}
+  if(t.id==="save-photo"){await savePhoto(openId);return}
   if(t.id==="del-photo"){delete S.progress.stamps[openId].photo;await saveProgress();trackNote(openId);renderSheet();return}
 });
 
@@ -689,6 +690,25 @@ async function saveImage(which){
   try{for(const o of items)await window.__dl.save({filename:o.name,data:o.blob});
     m.textContent=IS_ANDROID?"保存しました。ギャラリー（フォト）の「Download」に入っています。":"保存しました。";m.className="msg ok";track("save",null,false,{what:IMG_LABEL[which]})}
   catch(e){m.textContent=e&&e.code==="declined"?"保存を取りやめました。":"保存できませんでした。画像を長押しして「写真に追加」を選んでください。";m.className="msg err"}
+}
+// The memo photo on its own, with the 認定番号 and event tag in the corner so a posted photo can be matched in the sheet
+async function savePhoto(id){
+  const s=shops().all.find(x=>x.id===id), st=S.progress.stamps[id], m=$("#photo-msg");if(!st?.photo)return;
+  const img=await loadImg(st.photo);if(!img)return;
+  try{await document.fonts.load(`700 24px "Noto Sans JP"`,"No.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"+SNS_TAG)}catch(e){}
+  const c=document.createElement("canvas");c.width=img.width;c.height=img.height;const g=c.getContext("2d");g.drawImage(img,0,0);
+  const fs=Math.max(16,Math.round(c.width*0.03)), pad=Math.round(fs*0.55), text=`No.${anonId().slice(-6).toUpperCase()}  ${SNS_TAG}`;
+  g.font=`700 ${fs}px "Noto Sans JP",sans-serif`;const tw=g.measureText(text).width, bw=tw+pad*2, bh=fs+pad*1.4, x=c.width-bw-pad, y=c.height-bh-pad;
+  g.fillStyle="rgba(0,0,0,.45)";g.beginPath();g.roundRect?g.roundRect(x,y,bw,bh,bh/2):g.rect(x,y,bw,bh);g.fill();
+  g.fillStyle="#fff";g.textBaseline="middle";g.textAlign="left";g.fillText(text,x+pad,y+bh/2+1);
+  const d=new Date(), blob=await new Promise(r=>c.toBlob(r,"image/jpeg",0.9)), name=`coffee-photo-${s?.code||"shop"}-${d.getMonth()+1}${String(d.getDate()).padStart(2,"0")}.jpg`;
+  const done=()=>{m.textContent=IS_ANDROID?"保存しました。ギャラリー（フォト）の「Download」に入っています。":"保存できました。写真アプリを見てみてください。";m.className="msg ok";track("save",s,false,{what:"メモの写真"})};
+  if(canSharePhoto()){
+    try{await navigator.share({files:[new File([blob],name,{type:"image/jpeg"})]});done();return}
+    catch(e){if(e&&e.name==="AbortError"){m.textContent="保存を取りやめました。";m.className="msg";return}}
+  }
+  try{await window.__dl.save({filename:name,data:blob});done()}
+  catch(e){m.textContent="保存できませんでした。";m.className="msg err"}
 }
 function saveHTML(n,label){return `${canSharePhoto()||window.__dl?`<button class="btn wide" id="save-img${n}">${label}を写真に保存する</button>`:""}
     <p class="msg" style="font-size:12px">${canSharePhoto()?"ボタンを押して出てくるメニューで「画像を保存」を選ぶと、写真アプリに入ります。":IS_ANDROID?"ボタンを押すとスマホ本体に保存され、ギャラリー（フォト）の「Download」に入ります。":"保存できないときは、画像を長押しして「写真に追加」（または「画像を保存」）を選んでください。"}</p>`}
