@@ -592,6 +592,12 @@ function renderProfile(){
   const show=profDraft!==null||(!S.progress.profile&&!S.progress.profileSkip);
   el.hidden=!show;if(show)el.innerHTML=profileHTML();
 }
+// The visitor's own pick of their favourite shop among those they stamped (falls back to the highest stars)
+function favHTML(list,n){
+  if(!list.length)return "";
+  const cur=S.progress.fav&&list.some(s=>s.id===S.progress.fav)?S.progress.fav:"";
+  return `<label class="field"><span>いちばん好きだったお店</span><select class="fav-pick" id="fav${n}"><option value="">選んでください（未選択なら好き度がいちばん高いお店）</option>${list.map(s=>`<option value="${s.id}" ${cur===s.id?"selected":""}>${esc(s.shop.replace(/^見本：/,""))}</option>`).join("")}</select></label>`;
+}
 // Card 1 holds the first GOAL shops collected; card 2 (全店制覇) opens once card 1 is full and lists every shop
 function renderPlay(){
   const {all,list,demo}=shops(), k=list.length, total=all.length, complete=total>0&&k>=total;
@@ -608,6 +614,7 @@ function renderPlay(){
     <button class="btn wide" id="scan-open">QRコードを読み込む</button>
     <div class="cups five">${[...first.map(slotHTML),...Array(GOAL-k1).fill(empty)].join("")}</div>
     ${k1>=GOAL?`<div class="reward done"><strong>${GOAL}店舗 飲み比べ達成！</strong>${second?"2枚目の「全店制覇」台紙が開きました。下へ進んでください。":"飲み比べおつかれさまでした。"}</div>${certHTML(3,"飲み比べ達成認定証",`${GOAL}店舗を飲み比べたあなたへの特典です。`)}`:""}
+    ${favHTML(first,1)}
     <button class="btn wide leaf" id="make-img1" ${k1?"":"disabled"}>1枚目を画像にする</button>
     <p class="msg" id="img-msg1">${k1?"何杯の時点でも画像にできます。台紙と、各店のメモの2枚になります。":"1杯飲むと画像にできます。"}</p>
     <div id="img-box1"></div>`;
@@ -619,6 +626,7 @@ function renderPlay(){
     <div class="cups">${[...list,...all.filter(s=>!S.progress.stamps[s.id])].map(slotHTML).join("")}</div>
     ${complete?`<div class="reward done"><strong>全${total}店舗制覇！</strong>すべてのお店を回りました。おめでとうございます！</div>
     ${certHTML(4,"全店制覇認定証","全店制覇したあなただけの特典です。")}`:`<p class="msg">全店制覇まであと${total-k}店舗です。全店そろうと、特典の「全店制覇認定証」がもらえます。</p>`}
+    ${favHTML(list,2)}
     <button class="btn wide leaf" id="make-img2">2枚目を画像にする</button>
     <p class="msg" id="img-msg2">台紙、1〜5店舗目のメモ、6店舗目からのメモの3枚になります。</p>
     <div id="img-box2"></div>`:"";
@@ -693,6 +701,9 @@ $("#view-play").addEventListener("input",e=>{
 });
 // A photo for a shop's notes: shrunk on the phone so a dozen fit in browser storage
 $("#view-play").addEventListener("change",async e=>{
+  if(e.target.classList.contains("fav-pick")){S.progress.fav=e.target.value;await saveProgress();
+    const s=shops().all.find(x=>x.id===e.target.value);if(s)track("fav",s);
+    document.querySelectorAll(".fav-pick").forEach(x=>{if(x!==e.target&&[...x.options].some(o=>o.value===e.target.value))x.value=e.target.value});return}
   if(e.target.id==="prof-bg"){profDraft=profDraft||{...(S.progress.profile||{})};profDraft.bg=e.target.value;
     const c=$("#prof-city")?.value;if(c!=null)profDraft.city=c;renderProfile();return}
   if(e.target.id==="prof-pref"){profDraft=profDraft||{...(S.progress.profile||{})};profDraft.pref=e.target.value;profDraft.bg="";
@@ -798,8 +809,8 @@ async function makeImage(which){
   if(AV)await drawAvatar(g,hx,1150-AV/2,AV);
   g.fillStyle=roast;g.font=`900 64px ${D}`;g.textAlign="left";g.fillText(head,hx+(AV?AV+24:0),1170);g.textAlign="center";
   g.fillStyle=ink;g.font=`500 28px ${B}`;
-  const fav=rated[0];
-  fitText(g,fav?`いちばん好きだったのは ${fav.shop.replace(/^見本：/,"")}${S.progress.stamps[fav.id].memo?"「"+S.progress.stamps[fav.id].memo+"」":""}`:"星をつけると、お気に入りがここに入ります",W/2,1228,W-160);
+  const fav=list.find(s=>s.id===S.progress.fav&&S.progress.stamps[s.id])||rated[0];
+  fitText(g,fav?`いちばん好きだったのは ${fav.shop.replace(/^見本：/,"")}${S.progress.stamps[fav.id].memo?"「"+S.progress.stamps[fav.id].memo+"」":""}`:"いちばん好きだったお店を選ぶと、ここに入ります",W/2,1228,W-160);
   const d=new Date();g.fillStyle=muted;g.font=`500 20px ${B}`;g.fillText(`${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} 作成`,W/2,1275);
   // Separate images: the card, then the notes for shops 1-5, then (card 2) shops 6 and up
   const colors={ink,roast,stamp,leaf,muted,line,D,B}, stem=which===1?"collection":"all-shops", day=`${d.getMonth()+1}${String(d.getDate()).padStart(2,"0")}`;
