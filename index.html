@@ -330,7 +330,7 @@ function slotHTML(s){
         ${st?`<img class="ph logo ${justGot===s.id?"new":""}" src="${logoOf(s)}" alt="${esc(s.shop)}のロゴ">`:`<div class="ph todo">？</div>`}
         <b>${esc(s.shop.replace(/^見本：/,""))}</b>
         <small>${esc(st?.roast||"")}${st?.rating?` <span class="mini">${stars(st.rating)}</span>`:""}</small>
-        ${st&&!(st.roast||st.memo?.trim()||st.bean||st.tastes?.length||st.photo)?`<small class="pen">✎ メモを書く</small>`:""}
+        ${st&&!(st.roast||st.memo?.trim()||st.bean||st.tastes?.length)?`<small class="pen">✎ メモを書く</small>`:""}
       </button>`;
 }
 // Bonus certificate block: n=3 for 5店 飲み比べ, n=4 for 全店制覇
