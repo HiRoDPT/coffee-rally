@@ -362,7 +362,7 @@ function renderSheet(){
       <label class="field"><span>感想</span><textarea id="memo" maxlength="80" placeholder="例：酸味が爽やか。また飲みたい">${esc(st.memo||"")}</textarea></label>
       <div class="field"><span>写真（お店・コーヒー・商品など）</span>
         ${st.photo?`<img class="memo-photo" src="${st.photo}" alt="${esc(s.shop)}の写真">`:""}
-        <div class="row"><label class="btn ghost file photo-btn">${st.photo?"写真を変える":"写真を入れる"}<input id="n-photo" type="file" accept="image/*"></label>${st.photo?`<button class="btn ghost" id="del-photo">写真を消す</button>`:""}<span class="msg" id="photo-msg"></span></div></div>
+        <div class="row"><label class="btn ghost file photo-btn">写真を撮る<input id="n-photo-cam" type="file" accept="image/*" capture="environment"></label><label class="btn ghost file photo-btn">アルバムから選ぶ<input id="n-photo" type="file" accept="image/*"></label>${st.photo?`<button class="btn ghost" id="del-photo">写真を消す</button>`:""}<span class="msg" id="photo-msg"></span></div></div>
       <div class="row"><button class="btn" id="save-memo">メモを保存</button><span class="msg" id="memo-msg"></span></div>`:`
       <p class="note">お店に置いてあるQRコードをスマホのカメラで読み取ると、このマスにお店のロゴのスタンプが載ります。</p>`}
     <div class="row"><button class="btn ghost" id="close">台紙に戻る</button>${st?`<button class="btn ghost" id="unstamp">このスタンプを取り消す</button>`:""}</div>
@@ -396,7 +396,7 @@ $("#view-play").addEventListener("click",async e=>{
 
 // A photo for a shop's notes: shrunk on the phone so a dozen fit in browser storage
 $("#view-play").addEventListener("change",async e=>{
-  if(e.target.id!=="n-photo"||!e.target.files?.[0]||!openId)return;
+  if(!/^n-photo/.test(e.target.id)||!e.target.files?.[0]||!openId)return;
   const st=S.progress.stamps[openId], msg=$("#photo-msg");msg.textContent="読み込み中…";msg.className="msg";
   try{
     const img=await loadImg(URL.createObjectURL(e.target.files[0]));if(!img)throw 0;
