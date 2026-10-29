@@ -612,7 +612,7 @@ async function certBack(all,B){
   let gy=y+235;
   if(logo){const L=140, sc=Math.min(L/logo.width,L/logo.height), lw=logo.width*sc, lh=logo.height*sc;g.drawImage(logo,W/2-lw/2,gy+25,lw,lh);gy+=25+lh}
   // every shop's logo with its name, 4 per row
-  const cols=4, R=logo?60:80, gapX=220, rowH=logo?170:220, top=gy+(logo?40:105)+R;
+  const cols=4, R=logo?76:80, gapX=230, rowH=logo?200:220, top=gy+(logo?40:105)+R;
   for(let i=0;i<all.length;i++){
     const r=Math.floor(i/cols), inRow=Math.min(cols,all.length-r*cols), x=W/2+(i%cols-(inRow-1)/2)*gapX, yy=top+r*rowH;
     g.save();g.beginPath();g.arc(x,yy,R,0,Math.PI*2);g.fillStyle="#efe8e0";g.fill();
