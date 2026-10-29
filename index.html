@@ -696,7 +696,12 @@ async function makeCert(n){
   g.fillStyle=gold;g.font=`700 28px ${B}`;g.fillText("CERTIFICATE OF COMPLETION",W/2,150);
   g.fillStyle=roast;g.font=`900 88px ${B}`;g.fillText(full?"全店制覇認定証":"飲み比べ達成認定証",W/2,265);
   const name=S.progress.certName;
-  g.fillStyle=ink;g.font=`900 60px ${B}`;fitText(g,name?`${name} さま`:"あなた さま",W/2,385,W-240);
+  // The avatar sits just left of the name, the pair centred together
+  g.fillStyle=ink;g.font=`900 60px ${B}`;
+  const nameText=name?`${name} さま`:"あなた さま", AV=avatarURL()?104:0, gapAv=AV?24:0, maxName=W-240-AV-gapAv;
+  const nw=Math.min(g.measureText(nameText).width,maxName), nx=(W-(AV+gapAv+nw))/2;
+  if(AV)await drawAvatar(g,nx,385-AV/2-30,AV);
+  fitText(g,nameText,nx+AV+gapAv+nw/2,385,maxName);
   g.strokeStyle=line2();g.lineWidth=2;g.beginPath();g.moveTo(220,410);g.lineTo(W-220,410);g.stroke();
   g.fillStyle=ink;g.font=`500 30px ${B}`;
   (full?[`あなたは ${S.cfg.title} の`,`コーヒーショップ全${all.length}店舗を飲み歩き`,"見事全店制覇を達成されました","ここにその証として認定します"]
@@ -717,7 +722,6 @@ async function makeCert(n){
   g.fillText(`${full?"制覇日":"達成日"}　${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`,130,by+20);
   g.fillText(`認定番号　No.${anonId().slice(-6).toUpperCase()}`,130,by+66);
   g.fillText(S.cfg.place,130,by+112);
-  await drawAvatar(g,500,by-30,130);
   // red seal
   const sx=W-230, sy=by+50;
   g.save();g.translate(sx,sy);g.rotate(-0.18);
