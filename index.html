@@ -106,6 +106,8 @@ textarea{resize:vertical;min-height:60px}
 .reward{border-radius:14px;padding:12px 16px;background:var(--soft);font-size:14px}
 .reward.done{background:var(--roast);color:var(--paper)}
 .reward strong{font-family:var(--display);display:block}
+.cert{margin-top:14px;border:2px solid var(--stamp);border-radius:16px;padding:14px 16px}
+.cert h3{font-family:var(--display);color:var(--roast);font-size:18px;margin:2px 0 4px}
 .app{border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;grid-template-columns:56px minmax(0,1fr);gap:12px;align-items:start}
 .app .ph{width:56px;font-size:10px}
 .app .body{display:flex;flex-direction:column;gap:6px;min-width:0}
@@ -297,6 +299,16 @@ function slotHTML(s){
         <small>${esc(st?.roast||"")}${st?.rating?` <span class="mini">${stars(st.rating)}</span>`:""}</small>
       </button>`;
 }
+// Bonus certificate block: n=3 for 5店 飲み比べ, n=4 for 全店制覇
+function certHTML(n,title,lead){return `<div class="cert">
+      <div class="eyebrow">BONUS</div>
+      <h3>${title}をどうぞ</h3>
+      <p class="note">${lead}お名前を入れると認定証に載ります（なくても作れます）。</p>
+      <label class="field"><span>認定証に載せるお名前（ニックネーム可）</span><input id="cert-name${n}" type="text" maxlength="16" placeholder="例：まめかけ太郎" value="${esc(S.progress.certName||"")}"></label>
+      <button class="btn wide" id="make-img${n}">認定証をもらう</button>
+      <p class="msg" id="img-msg${n}"></p>
+      <div id="img-box${n}"></div>
+    </div>`}
 // Card 1 holds the first GOAL shops collected; card 2 (全店制覇) opens once card 1 is full and lists every shop
 function renderPlay(){
   const {all,list,demo}=shops(), k=list.length, total=all.length, complete=total>0&&k>=total;
@@ -305,12 +317,12 @@ function renderPlay(){
   $("#play-card").innerHTML=`
     <div class="head"><div class="eyebrow">COFFEE STAMP RALLY ・ 1枚目</div><h2>${esc(S.cfg.title)}</h2><p>${esc(S.cfg.date)} ／ ${esc(S.cfg.place)}</p></div>
     ${demo?`<p class="note">出店者がまだ台紙に載っていないので、<span class="tag demo">見本</span>の5店で試せます。各店のQRは「主催者」タブに出ています。</p>`:""}
-    ${total>GOAL?`<p class="note">好きなお店を${GOAL}店回って飲み比べ。${GOAL}店そろうと、2枚目の「全店制覇」台紙が開きます。</p>`:""}
+    ${total>GOAL?`<p class="note">好きなお店を${GOAL}店回って飲み比べ。${GOAL}店そろうと「飲み比べ達成認定証」がもらえて、2枚目の「全店制覇」台紙が開きます。</p>`:""}
     <div class="meter"><div class="bar"><i style="width:${k1/GOAL*100}%"></i></div>${k1} / ${GOAL} 杯</div>
     <p class="msg" id="save-note" style="font-size:12px"></p>
     <button class="btn wide" id="scan-open">QRコードを読み込む</button>
     <div class="cups five">${[...first.map(slotHTML),...Array(GOAL-k1).fill(empty)].join("")}</div>
-    ${k1>=GOAL?`<div class="reward done"><strong>${GOAL}店 飲み比べ達成！</strong>${second?"2枚目の「全店制覇」台紙が開きました。下へ進んでください。":"飲み比べおつかれさまでした。"}</div>`:""}
+    ${k1>=GOAL?`<div class="reward done"><strong>${GOAL}店 飲み比べ達成！</strong>${second?"2枚目の「全店制覇」台紙が開きました。下へ進んでください。":"飲み比べおつかれさまでした。"}</div>${certHTML(3,"飲み比べ達成認定証",`${GOAL}店を飲み比べたあなたへの特典です。`)}`:""}
     <button class="btn wide leaf" id="make-img1" ${k1?"":"disabled"}>1枚目を画像にする</button>
     <p class="msg" id="img-msg1">${k1?"何杯の時点でも画像にできます。各店のメモも下に一緒に入ります。":"1杯飲むと画像にできます。"}</p>
     <div id="img-box1"></div>`;
@@ -320,7 +332,8 @@ function renderPlay(){
     <div class="head"><div class="eyebrow">ALL SHOPS CHALLENGE ・ 2枚目</div><h2>全店制覇台紙</h2><p>全${total}店のスタンプを集めよう</p></div>
     <div class="meter"><div class="bar"><i style="width:${k/total*100}%"></i></div>${k} / ${total} 店</div>
     <div class="cups">${[...list,...all.filter(s=>!S.progress.stamps[s.id])].map(slotHTML).join("")}</div>
-    ${complete?`<div class="reward done"><strong>全${total}店制覇！</strong>すべてのお店を回りました。おめでとうございます！</div>`:`<p class="msg">全店制覇まであと${total-k}店です。</p>`}
+    ${complete?`<div class="reward done"><strong>全${total}店制覇！</strong>すべてのお店を回りました。おめでとうございます！</div>
+    ${certHTML(4,"全店制覇認定証","全店制覇したあなただけの特典です。")}`:`<p class="msg">全店制覇まであと${total-k}店です。全店そろうと、特典の「全店制覇認定証」がもらえます。</p>`}
     <button class="btn wide leaf" id="make-img2">2枚目を画像にする</button>
     <p class="msg" id="img-msg2">全店のスタンプと、集めたお店のメモが入ります。</p>
     <div id="img-box2"></div>`:"";
@@ -369,7 +382,8 @@ $("#view-play").addEventListener("click",async e=>{
   if(t.dataset.taste){const x=t.dataset.taste;draft.tastes=draft.tastes.includes(x)?draft.tastes.filter(y=>y!==x):[...draft.tastes,x];t.classList.toggle("on");return}
   if(t.id==="save-memo"){Object.assign(S.progress.stamps[openId],{memo:$("#memo").value.slice(0,80),bean:$("#n-bean").value.trim().slice(0,30),roast:draft.roast,tastes:draft.tastes});await saveProgress();renderPlay();trackNote(openId);$("#memo-msg").textContent="保存しました";$("#memo-msg").className="msg ok";return}
   if(t.id==="make-img1"||t.id==="make-img2"){await makeImage(+t.id.slice(-1));return}
-  if(t.id==="save-img1"||t.id==="save-img2"){await saveImage(+t.id.slice(-1));return}
+  if(t.id==="make-img3"||t.id==="make-img4"){const n=+t.id.slice(-1);S.progress.certName=$("#cert-name"+n).value.trim().slice(0,16);await saveProgress();await makeCert(n);return}
+  if(/^save-img[1-4]$/.test(t.id)){await saveImage(+t.id.slice(-1));return}
 });
 
 /* ---------- QR arrival: the shop's QR opens this page with #q-<code> ---------- */
@@ -499,10 +513,61 @@ function wrapText(g,t,x,y,max,lh,maxLines){
   out.forEach((l,i)=>g.fillText(l,x,y+i*lh));
 }
 function fitText(g,t,x,y,max){let size=parseInt(g.font.match(/(\d+)px/)[1]);const base=g.font;while(g.measureText(t).width>max&&size>14){size-=2;g.font=base.replace(/\d+px/,size+"px")}g.fillText(t,x,y);g.font=base}
+// Bonus certificates: n=3 飲み比べ達成 (the first GOAL shops), n=4 全店制覇 (every shop).
+// Name, the day they finished, the shops' logos and a number from the anonymous id
+async function makeCert(n){
+  try{await document.fonts.ready}catch(e){}
+  const sh=shops(), full=n===4, all=full?sh.all:sh.list.slice(0,GOAL), W=1080, H=1350, c=document.createElement("canvas");c.width=W;c.height=H;
+  const g=c.getContext("2d");
+  const ink="#2a201b",roast="#5b3a28",stamp="#9a3a1c",leaf="#2e6b5a",muted="#7a6c62",gold="#b08a3e";
+  const D='"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif', B='"Noto Sans JP","Hiragino Sans",sans-serif';
+  g.fillStyle="#fbf6ec";g.fillRect(0,0,W,H);
+  g.strokeStyle=gold;g.lineWidth=10;g.strokeRect(36,36,W-72,H-72);
+  g.lineWidth=2;g.strokeRect(58,58,W-116,H-116);
+  g.textAlign="center";
+  g.fillStyle=gold;g.font=`700 28px ${B}`;g.fillText("CERTIFICATE OF COMPLETION",W/2,150);
+  g.fillStyle=roast;g.font=`900 88px ${D}`;g.fillText(full?"全店制覇認定証":"飲み比べ達成認定証",W/2,265);
+  const name=S.progress.certName;
+  g.fillStyle=ink;g.font=`900 60px ${D}`;fitText(g,name?`${name} さま`:"あなた さま",W/2,385,W-240);
+  g.strokeStyle=line2();g.lineWidth=2;g.beginPath();g.moveTo(220,410);g.lineTo(W-220,410);g.stroke();
+  g.fillStyle=ink;g.font=`500 30px ${B}`;
+  (full?[`あなたは ${S.cfg.title} に出店した`,`全${all.length}店のコーヒーを飲み歩き`,"みごと全店制覇を達成されました","ここにその証として認定します"]
+    :[`あなたは ${S.cfg.title} で`,`${GOAL}店のコーヒーを飲み比べ`,"みごと飲み比べを達成されました","ここにその証として認定します"]).forEach((l,i)=>fitText(g,l,W/2,480+i*50,W-200));
+  // every shop's logo, 6 per row
+  const cols=full?6:5, R=full?58:72, gap=full?150:180, top=full?760:790;
+  for(let i=0;i<all.length;i++){
+    const r=Math.floor(i/cols), inRow=Math.min(cols,all.length-r*cols), x=W/2+(i%cols-(inRow-1)/2)*gap, y=top+r*140;
+    g.save();g.beginPath();g.arc(x,y,R,0,Math.PI*2);g.fillStyle="#efe8e0";g.fill();
+    const img=await loadImg(logoOf(all[i]));
+    if(img){g.clip();const sc=Math.max(2*R/img.width,2*R/img.height);g.drawImage(img,x-img.width*sc/2,y-img.height*sc/2,img.width*sc,img.height*sc)}
+    g.restore();g.strokeStyle=gold;g.lineWidth=3;g.beginPath();g.arc(x,y,R,0,Math.PI*2);g.stroke();
+  }
+  const rowsUsed=Math.ceil(all.length/cols), by=top+(rowsUsed-1)*140+R+90;
+  const dk=full?"completedAt":"goal5At", done=S.progress[dk]||(S.progress[dk]=Date.now(),await saveProgress(),S.progress[dk]);
+  const d=new Date(done);
+  g.textAlign="left";g.fillStyle=muted;g.font=`500 26px ${B}`;
+  g.fillText(`${full?"制覇日":"達成日"}　${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`,130,by+20);
+  g.fillText(`認定番号　No.${anonId().slice(-6).toUpperCase()}`,130,by+66);
+  g.fillText(S.cfg.place,130,by+112);
+  // red seal
+  const sx=W-230, sy=by+50;
+  g.save();g.translate(sx,sy);g.rotate(-0.18);
+  g.strokeStyle=stamp;g.lineWidth=7;g.beginPath();g.arc(0,0,92,0,Math.PI*2);g.stroke();
+  g.lineWidth=2;g.beginPath();g.arc(0,0,78,0,Math.PI*2);g.stroke();
+  g.textAlign="center";g.fillStyle=stamp;g.font=`900 34px ${D}`;g.fillText(full?"全店制覇":`${GOAL}店達成`,0,-6);
+  g.font=`700 22px ${B}`;g.fillText("まめかけ認定",0,32);
+  g.restore();
+  g.textAlign="center";g.fillStyle=leaf;g.font=`700 24px ${B}`;g.fillText("COFFEE STAMP RALLY",W/2,H-100);
+  const blob=lastBlobs[n]=await new Promise(r=>c.toBlob(r,"image/png"));
+  $("#img-box"+n).innerHTML=`<img class="preview" src="${URL.createObjectURL(blob)}" alt="認定証">
+    ${window.__dl?`<button class="btn wide" id="save-img${n}">認定証を保存する</button>`:`<p class="msg">この画面では保存ボタンが使えません。画像を長押し（右クリック）して保存してください。</p>`}`;
+  $("#img-msg"+n).textContent="おめでとうございます！あなたの認定証です。";$("#img-msg"+n).className="msg ok";
+}
+function line2(){return "#d8c9a8"}
 async function saveImage(which){
   const blob=lastBlobs[which];if(!blob||!window.__dl)return;
   const d=new Date(), m=$("#img-msg"+which);
-  try{await window.__dl.save({filename:`coffee-${which===1?"collection":"all-shops"}-${d.getMonth()+1}${String(d.getDate()).padStart(2,"0")}.png`,data:blob});
+  try{await window.__dl.save({filename:`coffee-${which===1?"collection":which===2?"all-shops":which===3?"certificate-5":"certificate-all"}-${d.getMonth()+1}${String(d.getDate()).padStart(2,"0")}.png`,data:blob});
     m.textContent="保存しました。";m.className="msg ok"}
   catch(e){m.textContent=e&&e.code==="declined"?"保存を取りやめました。":"保存できませんでした。画像を長押しして保存してください。";m.className="msg err"}
 }
