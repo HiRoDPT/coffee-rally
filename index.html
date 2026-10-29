@@ -342,6 +342,57 @@ function regionOf(pref){const i=PREFS.indexOf(pref);return i<0?"":i===0?"北海�
 const REGION_COL={"北海道":["#4a90c2","#e6f1fa","#7fb8de","雪と空のブルー"],"東北":["#c8373d","#fbe5e3","#e8a33c","りんごのレッド"],"関東":["#6a4c93","#efe9f6","#d98c2b","江戸紫"],
   "中部":["#3a6ea5","#e2ecf6","#e06c75","富士山とアルプスの青"],"関西":["#d9482b","#fde6dd","#c9a227","鳥居の朱色"],"中国":["#6b9e3a","#ecf4e1","#e0a03a","梨と大山のグリーン"],
   "四国":["#ee8a1e","#fff0dc","#2e6b5a","みかんのオレンジ"],"九州・沖縄":["#1f9aa5","#dcf3f4","#f2b134","南の海のエメラルド"],"海外":["#5b3a28","#f1e8df","#e0a03a","コーヒー豆のブラウン"]};
+// Each prefecture's specialty as a small badge on the avatar: [motif, label]
+const PREF_FEATURE={"北海道":["corn","とうもろこし"],"青森県":["apple","りんご"],"岩手県":["udon","わんこそば"],"宮城県":["fish","三陸の海の幸"],"秋田県":["rice","あきたこまち"],"山形県":["cherry","さくらんぼ"],"福島県":["peach","もも"],
+  "茨城県":["melon","メロン"],"栃木県":["strawberry","いちご"],"群馬県":["daruma","だるま"],"埼玉県":["tea","狭山茶"],"千葉県":["peanut","落花生"],"東京都":["tower","東京タワー"],"神奈川県":["wave","湘南の波"],
+  "新潟県":["rice","コシヒカリ"],"富山県":["fish","富山湾の魚"],"石川県":["crab","加能ガニ"],"福井県":["crab","越前ガニ"],"山梨県":["grape","ぶどう"],"長野県":["apple","りんご"],"岐阜県":["fish","鮎"],"静岡県":["fuji","富士山"],"愛知県":["ebi","エビフライ"],
+  "三重県":["pearl","真珠"],"滋賀県":["lake","琵琶湖"],"京都府":["tea","宇治抹茶"],"大阪府":["takoyaki","たこ焼き"],"兵庫県":["castle","姫路城"],"奈良県":["deer","鹿"],"和歌山県":["mikan","みかん"],
+  "鳥取県":["pear","二十世紀梨"],"島根県":["torii","出雲大社"],"岡山県":["peach","白桃"],"広島県":["momiji","もみじ"],"山口県":["fugu","ふぐ"],
+  "徳島県":["citrusG","すだち"],"香川県":["udon","讃岐うどん"],"愛媛県":["mikan","みかん"],"高知県":["citrusY","ゆず"],
+  "福岡県":["strawberry","あまおう"],"佐賀県":["plate","有田焼"],"長崎県":["castella","カステラ"],"熊本県":["watermelon","すいか"],"大分県":["onsen","温泉"],"宮崎県":["mango","マンゴー"],"鹿児島県":["imo","さつまいも"],"沖縄県":["hibiscus","ハイビスカス"],"海外":["globe","世界"]};
+// Motifs drawn around (0,0) in about a 40px box, in the same outlined style as the cup
+function motifSVG(m){
+  const o=`stroke="#2a201b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"`, leaf=(x,y,r)=>`<path d="M${x} ${y}c6-8 14-6 14-6c-2 8-8 10-14 6z" fill="#5a9a3a" ${o} transform="rotate(${r||0} ${x} ${y})"/>`;
+  const citrus=c=>`<circle cy="3" r="13" fill="${c}" ${o}/>${leaf(0,-10,-20)}<circle cx="-4" cy="0" r="1.5" fill="#fff" opacity=".7"/>`;
+  return ({
+    corn:`<ellipse rx="8" ry="15" fill="#f6c933" ${o}/><path d="M-4-8h8M-5-2h10M-5 4h10M-4 10h8" stroke="#d9a520" stroke-width="2"/><path d="M-8 4c-8-6-6-16-4-20M8 4c8-6 6-16 4-20" fill="none" stroke="#5a9a3a" stroke-width="4" stroke-linecap="round"/>`,
+    apple:`<path d="M0-6c-14-8-20 6-14 16c4 6 10 6 14 3c4 3 10 3 14-3c6-10 0-24-14-16z" fill="#d93b35" ${o}/><path d="M0-6v-8" ${o}/>${leaf(1,-12,-10)}`,
+    peach:`<path d="M0 14c-14 0-16-14-10-20c4-4 10-2 10 2c0-4 6-6 10-2c6 6 4 20-10 20z" fill="#f7a6a8" ${o}/><path d="M0-4c-2 6-2 12 0 16" fill="none" stroke="#e07a80" stroke-width="2"/>${leaf(0,-6,200)}`,
+    pear:`<path d="M0-10c-4 0-6 6-8 10c-6 4-6 16 8 16s14-12 8-16c-2-4-4-10-8-10z" fill="#d8e36a" ${o}/><path d="M0-10v-6" ${o}/>${leaf(1,-14,-15)}<circle cx="-4" cy="6" r="1" fill="#9aa83a"/><circle cx="4" cy="10" r="1" fill="#9aa83a"/>`,
+    grape:`${[[-6,-6],[6,-6],[0,-6],[-3,1],[3,1],[-6,1],[6,1],[0,8],[-3,8],[3,8],[0,14]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="5" fill="#7a4a9e" ${o}/>`).join("")}<path d="M0-11v-6" ${o}/>${leaf(1,-15,-10)}`,
+    mikan:citrus("#f39a1e"),citrusG:citrus("#7bb93a"),citrusY:citrus("#f6d23a"),
+    cherry:`<path d="M-6 6c2-10 6-16 8-20M7 6c-2-10-4-16-5-20" fill="none" ${o}/><circle cx="-7" cy="9" r="7" fill="#d9283a" ${o}/><circle cx="8" cy="9" r="7" fill="#d9283a" ${o}/>${leaf(2,-14,0)}`,
+    strawberry:`<path d="M-12-6c0 12 6 20 12 22c6-2 12-10 12-22c-8-4-16-4-24 0z" fill="#e8343c" ${o}/><path d="M-10-7l4-6 6 4 6-4 4 6" fill="#5a9a3a" ${o}/>${[[-5,0],[4,1],[0,7],[-4,10],[5,9]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="1.2" fill="#fde68a"/>`).join("")}`,
+    melon:`<circle cy="2" r="15" fill="#a8d06a" ${o}/><path d="M-10-8c6 6 6 16 0 22M0-13v30M10-8c-6 6-6 16 0 22M-14 0h28" fill="none" stroke="#e8f5d0" stroke-width="2"/><path d="M0-13v-5" ${o}/>`,
+    daruma:`<path d="M0-15c-14 0-16 14-14 20c2 8 8 11 14 11s12-3 14-11c2-6 0-20-14-20z" fill="#d9283a" ${o}/><ellipse cy="-2" rx="8" ry="7" fill="#fff" ${o}/><circle cx="-3" cy="-3" r="1.6" fill="#2a201b"/><path d="M-8 9c4 3 12 3 16 0" stroke="#f6c933" stroke-width="2.5" fill="none"/>`,
+    tea:`<path d="M-12 12c-2-14 8-26 22-26c2 14-8 26-22 26z" fill="#5a9a3a" ${o}/><path d="M-12 12c6-8 12-16 22-26" fill="none" stroke="#d4ecb0" stroke-width="2"/>`,
+    peanut:`<path d="M0-16c-8 0-9 7-7 11c2 3 2 5 0 8c-3 5 0 13 7 13s10-8 7-13c-2-3-2-5 0-8c2-4 1-11-7-11z" fill="#d9b27a" ${o}/><path d="M-4-8h8M-4 6h8" stroke="#b58a52" stroke-width="2"/>`,
+    tower:`<path d="M0-18l-12 34h24z" fill="#e8483c" ${o}/><path d="M-6 0h12M-9 8h18M-3-8h6" stroke="#fff" stroke-width="2.5"/><path d="M0-18v-4" ${o}/>`,
+    wave:`<path d="M-16 10c2-14 12-22 24-18c-8 0-12 6-8 10c4 4 10 0 10-4c4 6 2 16-6 18z" fill="#3f88c5" ${o}/><path d="M-18 14h36" stroke="#3f88c5" stroke-width="4" stroke-linecap="round"/>`,
+    fish:`<path d="M-14 0c6-10 18-10 24 0c-6 10-18 10-24 0z" fill="#5a9ad6" ${o}/><path d="M10 0l8-7v14z" fill="#5a9ad6" ${o}/><circle cx="-7" cy="-2" r="1.8" fill="#2a201b"/>`,
+    fugu:`<circle cx="-2" r="12" fill="#e8d6a0" ${o}/><path d="M10 0l8-6v12z" fill="#e8d6a0" ${o}/>${[[-2,-15],[-12,-9],[-15,2],[-11,11],[-1,15],[8,11],[8,-10]].map(([x,y])=>`<path d="M${x*.8} ${y*.8}L${x} ${y}" ${o}/>`).join("")}<circle cx="-7" cy="-3" r="1.8" fill="#2a201b"/>`,
+    crab:`<ellipse cy="4" rx="13" ry="9" fill="#e0483c" ${o}/><path d="M-12 0c-6-4-8-10-4-14c2 2 4 4 2 6M12 0c6-4 8-10 4-14c-2 2-4 4-2 6" fill="#e0483c" ${o}/><path d="M-12 8l-6 4M12 8l6 4M-10 12l-4 5M10 12l4 5" ${o}/><circle cx="-4" cy="0" r="1.6" fill="#2a201b"/><circle cx="4" cy="0" r="1.6" fill="#2a201b"/>`,
+    fuji:`<path d="M-18 14l12-24h12l12 24z" fill="#3a6ea5" ${o}/><path d="M-6-10h12l4 8-4-2-3 3-3-3-3 3-3-3-4 2z" fill="#fff" ${o}/>`,
+    ebi:`<path d="M-12 12c-4-14 6-26 20-24c-6 4-8 8-6 12c-2 4-8 6-14 12z" fill="#e8a33c" ${o}/><path d="M8-12l6-4-2 6" fill="#e0483c" ${o}/><path d="M-6 2l6-4M-2 8l6-4" stroke="#b5762a" stroke-width="2"/>`,
+    pearl:`<path d="M-16 6c0-12 32-12 32 0c-4 8-28 8-32 0z" fill="#c9c3d8" ${o}/><circle cy="-2" r="8" fill="#fff" ${o}/><circle cx="-3" cy="-5" r="2" fill="#e8e4f4"/>`,
+    lake:`<path d="M-4-16c8 0 8 8 4 14c-4 6 6 8 4 14c-2 6-12 4-12-2c0-6-6-8-2-16c2-6 2-10 6-10z" fill="#5a9ad6" ${o}/><path d="M-2 0c2 2 4 2 6 0" stroke="#fff" stroke-width="2" fill="none"/>`,
+    takoyaki:`${[[-8,4],[8,4],[0,-6]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="9" fill="#c98a3a" ${o}/>`).join("")}<path d="M-14 2c4-2 6 2 10 0M2 2c4-2 6 2 10 0M-6-8c4-2 6 2 10 0" stroke="#5a3522" stroke-width="2.5" fill="none"/><path d="M-10-2l2 1M6 8l2-1" stroke="#5a9a3a" stroke-width="2"/>`,
+    castle:`<path d="M-14 16v-8h28v8z" fill="#fff" ${o}/><path d="M-16 8l4-6h24l4 6z" fill="#7a8a9a" ${o}/><path d="M-9 2v-6h18v6z" fill="#fff" ${o}/><path d="M-12-4l4-6h16l4 6z" fill="#7a8a9a" ${o}/><path d="M-5-10v-4h10v4M-8-14l3-4h10l3 4z" fill="#7a8a9a" ${o}/>`,
+    deer:`<ellipse cy="4" rx="9" ry="11" fill="#b5835a" ${o}/><path d="M-6-6l-6-10M-9-12l-5 2M6-6l6-10M9-12l5 2" ${o}/><circle cx="-3" cy="2" r="1.6" fill="#2a201b"/><circle cx="3" cy="2" r="1.6" fill="#2a201b"/><circle cy="10" r="2.5" fill="#2a201b"/><circle cx="-5" cy="-2" r="1.5" fill="#fff"/>`,
+    torii:`<path d="M-18-12c12 3 24 3 36 0l-2 6h-32z" fill="#e0483c" ${o}/><path d="M-12-2h24" stroke="#e0483c" stroke-width="5"/><path d="M-10-6v22M10-6v22" stroke="#e0483c" stroke-width="5" stroke-linecap="round"/><path d="M-12-2h24" ${o} fill="none"/>`,
+    momiji:`<path d="M0-16l3 8 8-4-3 8 9 1-7 5 3 8-8-4-5 9-5-9-8 4 3-8-7-5 9-1-3-8 8 4z" fill="#e0483c" ${o}/><path d="M0 4v12" ${o}/>`,
+    plate:`<ellipse cy="4" rx="17" ry="10" fill="#fff" ${o}/><ellipse cy="3" rx="11" ry="5" fill="none" stroke="#3a6ea5" stroke-width="2.5"/><path d="M-4 3c2-3 6-3 8 0" stroke="#3a6ea5" stroke-width="2" fill="none"/>`,
+    castella:`<path d="M-16-4l6-6h24l-6 6z" fill="#7a4a2a" ${o}/><path d="M-16-4h24v16h-24z" fill="#f6d06a" ${o}/><path d="M8-4l6-6v16l-6 6z" fill="#e8b84a" ${o}/><path d="M-16-1h24" stroke="#7a4a2a" stroke-width="3"/>`,
+    watermelon:`<path d="M-16-2a16 16 0 0 0 32 0z" fill="#e8343c" ${o}/><path d="M-16-2a16 16 0 0 0 32 0" fill="none" stroke="#3a8a3a" stroke-width="4"/>${[[-7,3],[0,6],[7,3]].map(([x,y])=>`<ellipse cx="${x}" cy="${y}" rx="1.4" ry="2" fill="#2a201b"/>`).join("")}`,
+    onsen:`<path d="M-14 6c0 8 28 8 28 0" fill="#e0483c" ${o}/><path d="M-14 6c0-4 28-4 28 0" fill="none" ${o}/><path d="M-6 0c-4-5 4-8 0-14M0-2c-4-5 4-8 0-14M6 0c-4-5 4-8 0-14" fill="none" stroke="#e0483c" stroke-width="3" stroke-linecap="round"/>`,
+    mango:`<path d="M-10 12c-8-8-2-26 10-26c10 0 14 10 8 20c-4 6-12 12-18 6z" fill="#f6a23a" ${o}/><path d="M-10 12c-4-4 0-10 4-12" stroke="#e0483c" stroke-width="3" fill="none" opacity=".6"/>${leaf(2,-14,-30)}`,
+    imo:`<path d="M-16 6c-2-8 8-16 18-16s16 6 14 12c-2 8-12 12-20 10c-6-1-11-2-12-6z" fill="#9a4a8e" ${o}/><path d="M-6-2l2 1M4 4l2 1M8-4l1 2" stroke="#d6a0d0" stroke-width="2"/>`,
+    hibiscus:`${[0,72,144,216,288].map(a=>`<ellipse cy="-9" rx="7" ry="10" fill="#e8343c" ${o} transform="rotate(${a})"/>`).join("")}<circle r="4" fill="#f6d23a" ${o}/>`,
+    globe:`<circle r="15" fill="#5a9ad6" ${o}/><path d="M-15 0h30M0-15c-8 8-8 22 0 30M0-15c8 8 8 22 0 30" fill="none" stroke="#fff" stroke-width="2"/><path d="M-8-8c4 2 6 6 2 8M4 4c4 0 6 4 4 6" fill="#5a9a3a" ${o}/>`,
+    udon:`<path d="M-16-2h32c0 12-8 18-16 18s-16-6-16-18z" fill="#fff" ${o}/><path d="M-16-2h32" ${o}/><path d="M-10-2c2-8 4-8 6 0M-4-2c2-10 4-10 6 0M2-2c2-8 4-8 6 0" fill="none" stroke="#f3e2b0" stroke-width="3" stroke-linecap="round"/><path d="M-10 6h20" stroke="#3a6ea5" stroke-width="2.5"/>`,
+    rice:`<path d="M0 18c0-12-2-20-8-28" fill="none" stroke="#c9a227" stroke-width="2.5"/>${[[-7,-12],[-4,-6],[-2,0],[-9,-4],[2,-8],[0,6]].map(([x,y],i)=>`<ellipse cx="${x}" cy="${y}" rx="3" ry="5" fill="#f6d06a" stroke="#2a201b" stroke-width="2" transform="rotate(${i%2?30:-30} ${x} ${y})"/>`).join("")}`
+  })[m]||"";
+}
 // Drawn in the まめかけ logo's style: white cup, dark hand-drawn outline, dot eyes.
 // 女性 = the logo's cup with coffee beans popping out; 男性 = a cup with a pour-over dripper on top; 答えない = a plain mug.
 // The region of the chosen prefecture sets the colours, age group adds a small extra, and the anonymous id varies the face
@@ -390,7 +441,8 @@ function avatarSVG(p,seed){
     "40代":`<path d="M${fx-24} ${fy-12}h14M${fx+10} ${fy-12}h14" stroke="${ink}" stroke-width="3.5" stroke-linecap="round"/>`,
     "50代":`<path d="M30 176h140" stroke="${ink}" stroke-width="5" stroke-linecap="round"/><path d="M150 172l20-26" stroke="${ink}" stroke-width="4" stroke-linecap="round"/><ellipse cx="172" cy="142" rx="6" ry="9" transform="rotate(38 172 142)" fill="#fff" ${L}/>`,
     "60代以上":`<circle cx="${fx-16}" cy="${fy}" r="10" fill="none" stroke="${ink}" stroke-width="3"/><circle cx="${fx+16}" cy="${fy}" r="10" fill="none" stroke="${ink}" stroke-width="3"/><path d="M${fx-6} ${fy}h12" stroke="${ink}" stroke-width="3"/>`}[p.age]||"";
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><circle cx="100" cy="100" r="100" fill="${bg}"/>${cup}${face}${ex}</svg>`;
+  const feat=PREF_FEATURE[p.pref], badge=feat?`<g transform="translate(158 156)"><circle r="33" fill="#fff" stroke="${col}" stroke-width="4"/><g transform="scale(1.1)">${motifSVG(feat[0])}</g></g>`:"";
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><circle cx="100" cy="100" r="100" fill="${bg}"/>${cup}${face}${ex}${badge}</svg>`;
 }
 function avatarURL(){const p=S.progress.profile;return p&&p.age?"data:image/svg+xml;charset=utf-8,"+encodeURIComponent(avatarSVG(p,anonId())):""}
 let profDraft=null;
@@ -400,8 +452,8 @@ function profileHTML(){
   const group=(label,key,list)=>`<div class="field"><span>${label}</span><div class="chips">${list.map(v=>`<button type="button" class="chip ${d[key]===v?"on":""}" data-prof="${key}" data-v="${v}">${v}</button>`).join("")}</div></div>`;
   return `<div class="eyebrow">MY AVATAR</div><h3>あなたのアバターを作ろう</h3>
     <div class="avatar-pre${ready?"":" ghost"}">${svg}</div>
-    ${reg?`<p class="msg" style="text-align:center;margin:-6px 0 0">${esc(reg==="海外"?"海外":reg+"地方")}カラー：${REGION_COL[reg][3]}</p>`:""}
-    <p class="note">年代・性別・お住まいを選ぶと、あなただけのコーヒーキャラができます。色はお住まいの地方で変わります。台紙と認定証に載ります。答えは匿名で集計し、今後のイベントづくりに使います。</p>
+    ${reg?`<p class="msg" style="text-align:center;margin:-6px 0 0">${esc(reg==="海外"?"海外":reg+"地方")}カラー：${REGION_COL[reg][3]}<br>${esc(d.pref)}のバッジ：${PREF_FEATURE[d.pref][1]}</p>`:""}
+    <p class="note">年代・性別・お住まいを選ぶと、あなただけのコーヒーキャラができます。色はお住まいの地方で、バッジは都道府県の名物で変わります。台紙と認定証に載ります。答えは匿名で集計し、今後のイベントづくりに使います。</p>
     ${group("年代","age",AGES)}${group("性別","sex",SEXES)}
     <div class="grid2"><label class="field"><span>都道府県</span><select id="prof-pref"><option value="">選んでください</option>${PREFS.map(v=>`<option ${d.pref===v?"selected":""}>${v}</option>`).join("")}</select></label>
     <label class="field"><span>市区町村（任意）</span><input id="prof-city" type="text" maxlength="20" placeholder="例：琴浦町" value="${esc(d.city||"")}"></label></div>
