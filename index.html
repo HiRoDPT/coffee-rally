@@ -260,10 +260,11 @@ async function flush(){
 }
 window.addEventListener("online",flush);
 // The sheet keeps one note row per phone and shop, overwritten with the latest stars and memo
-let noteTimer=null;
+// One timer per shop, so moving on to the next shop doesn't drop the last one's note
+const noteTimers={};
 function trackNote(id,delay){
-  clearTimeout(noteTimer);
-  noteTimer=setTimeout(()=>{const s=shops().all.find(x=>x.id===id), st=S.progress.stamps[id];if(!s||!st)return;
+  clearTimeout(noteTimers[id]);
+  noteTimers[id]=setTimeout(()=>{const s=shops().all.find(x=>x.id===id), st=S.progress.stamps[id];if(!s||!st)return;
     track("note",s,false,{rating:st.rating||0,bean:st.bean||"",roast:st.roast||"",tastes:(st.tastes||[]).join("・"),memo:st.memo||"",photo:photosOf(st).length})},delay||0);
 }
 // Which image a button made or saved, as shown in the organizer's sheet
@@ -694,8 +695,8 @@ $("#view-play").addEventListener("click",async e=>{
   if(t.id==="arrive-memo"){openId=arrive.id;arrive=null;renderArrive();renderSheet();$("#play-sheet").scrollIntoView({behavior:"smooth",block:"start"});return}
   if(t.dataset.rate){S.progress.stamps[openId].rating=+t.dataset.rate;saveProgress();renderPlay();trackNote(openId,1500);
     document.querySelectorAll("#rate button").forEach(b=>b.classList.toggle("on",+b.dataset.rate<=+t.dataset.rate));return}
-  if(t.dataset.roast){draft.roast=draft.roast===t.dataset.roast?"":t.dataset.roast;t.parentNode.querySelectorAll(".chip").forEach(c=>c.classList.toggle("on",c.dataset.roast===draft.roast));return}
-  if(t.dataset.taste){const x=t.dataset.taste;draft.tastes=draft.tastes.includes(x)?draft.tastes.filter(y=>y!==x):[...draft.tastes,x];t.classList.toggle("on");return}
+  if(t.dataset.roast){draft.roast=draft.roast===t.dataset.roast?"":t.dataset.roast;t.parentNode.querySelectorAll(".chip").forEach(c=>c.classList.toggle("on",c.dataset.roast===draft.roast));memoKeep();return}
+  if(t.dataset.taste){const x=t.dataset.taste;draft.tastes=draft.tastes.includes(x)?draft.tastes.filter(y=>y!==x):[...draft.tastes,x];t.classList.toggle("on");memoKeep();return}
   if(t.id==="save-memo"){Object.assign(S.progress.stamps[openId],{memo:$("#memo").value.slice(0,80),bean:$("#n-bean").value.trim().slice(0,30),roast:draft.roast,tastes:draft.tastes});await saveProgress();renderPlay();trackNote(openId);$("#memo-msg").textContent="保存しました";$("#memo-msg").className="msg ok";return}
   if(t.id==="make-img1"||t.id==="make-img2"){await makeImage(+t.id.slice(-1));return}
   if(t.id==="make-img3"||t.id==="make-img4"){const n=+t.id.slice(-1);S.progress.certName=$("#cert-name"+n).value.trim().slice(0,16);await saveProgress();await makeCert(n);return}
@@ -704,7 +705,14 @@ $("#view-play").addEventListener("click",async e=>{
 });
 
 // The town is required, so typing it is what enables saving
+// Memo text is kept as it is typed, so an image made without pressing 「メモを保存」 still has it
+let memoTimer=null;
+function memoKeep(){const st=S.progress.stamps[openId];if(!st)return;
+  st.roast=draft.roast;st.tastes=[...draft.tastes];
+  const b=$("#n-bean"),m=$("#memo");if(b)st.bean=b.value.trim().slice(0,30);if(m)st.memo=m.value.slice(0,80);
+  clearTimeout(memoTimer);memoTimer=setTimeout(()=>{saveProgress();renderPlay()},600);trackNote(openId,3000)}
 $("#view-play").addEventListener("input",e=>{
+  if(e.target.id==="n-bean"||e.target.id==="memo"){memoKeep();return}
   if(e.target.id!=="prof-city")return;profDraft=profDraft||{...(S.progress.profile||{})};profDraft.city=e.target.value;
   const d=profDraft, b=$("#prof-save"), ok=!!(d.age&&d.sex&&d.pref&&d.city.trim()&&withList(d.with).length);if(b)b.disabled=!ok;$(".avatar-pre")?.classList.toggle("ghost",!ok);
 });
