@@ -225,7 +225,7 @@ function deleteVendor(id){delete S.vendors[id];if(!S.remote){lsave();return Prom
 // Progress is always mirrored to this browser, and also to the viewer's account when the shared store accepts it
 /* ---------- anonymous counts for the organizer (Google Sheets via Apps Script) ---------- */
 // Web app URL from the organizer's spreadsheet; empty = nothing is sent
-const TRACK_URL="https://script.google.com/macros/s/AKfycbwcYXRdicyepGhr72sy7ILozpN6RC0veAyRMZYeuPKgzM_nxwj-GnO1GRd4c8l7zpzrDQ/exec";
+const TRACK_URL="https://script.google.com/macros/s/AKfycbyo6yVZCuIIoRQRuirB_NiCkfih24UdLJf_r4zRJa5zg5o7rs6KJ_bPVpWtjr_uKJwiWA/exec";
 const AKEY="coffee-rally-anon", QKEY="coffee-rally-outbox", FKEY="coffee-rally-sent";
 function lsGet(k,d){try{return JSON.parse(localStorage.getItem(k)||"null")??d}catch(e){return d}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
