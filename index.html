@@ -971,10 +971,15 @@ async function makeCert(n){
   g.fillStyle=leaf;g.font=`700 20px ${B}`;g.fillText("COFFEE STAMP RALLY",W/2,H-84);
   const dd=new Date(), stem=`coffee-certificate-${full?"all":"5"}-${dd.getMonth()+1}${String(dd.getDate()).padStart(2,"0")}`;
   // The back with every shop's logo is the prize for 全店制覇 only; 飲み比べ達成 gets the front alone
-  lastBlobs[n]=full?[{blob:await toBlob(c),name:`${stem}-1.png`},{blob:await toBlob(await certBack(sh.all,B,full)),name:`${stem}-2.png`}]:[{blob:await toBlob(c),name:`${stem}.png`}];
+  lastBlobs[n]=full?[{blob:await toBlob(c),name:`${stem}-1.png`},{blob:await toBlob(await certBack(sh.all,B,full)),name:`${stem}-2.png`}]:[{blob:await toBlob(c),name:`${stem}-1.png`}];
+  // The tasting notes come along with the certificate, empty frames included when nothing was written
+  const certN=lastBlobs[n].length, colors={ink,roast,stamp,leaf,muted,line:"#e2d9cf",D:B,B}, stamped=sh.list;
+  const groups=full?[[stamped.slice(0,GOAL),GOAL],[stamped.slice(GOAL),sh.all.length-GOAL]]:[[stamped.slice(0,GOAL),0]];
+  for(const [i,[grp,slots]] of groups.entries()){if(!grp.length)continue;const from=i*GOAL+1;
+    lastBlobs[n].push({blob:await toBlob(await notesCanvas(grp,`${from}〜${from+Math.max(slots,grp.length)-1}店舗目`,W,"#faf7f3",colors,slots)),name:`${stem}-${lastBlobs[n].length+1}.png`})}
   track("image",null,false,{what:IMG_LABEL[n]});
-  $("#img-box"+n).innerHTML=`${lastBlobs[n].map((o,i)=>`<img class="preview" src="${URL.createObjectURL(o.blob)}" alt="${i?"認定証の裏面":"認定証"}">`).join("")}
-    ${saveHTML(n,full?"認定証（表・裏）":"認定証")}`;
+  $("#img-box"+n).innerHTML=`${lastBlobs[n].map((o,i)=>`<img class="preview" src="${URL.createObjectURL(o.blob)}" alt="${i>=certN?"メモの画像":i?"認定証の裏面":"認定証"}">`).join("")}
+    ${saveHTML(n,full?"認定証（表・裏）とメモ":"認定証とメモ")}`;
   $("#img-msg"+n).textContent="おめでとうございます！あなたの認定証です。";$("#img-msg"+n).className="msg ok";
 }
 function line2(){return "#d8c9a8"}
