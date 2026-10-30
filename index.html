@@ -124,7 +124,10 @@ textarea{resize:vertical;min-height:60px}
 label.file{font-size:13px;color:var(--leaf);cursor:pointer;font-weight:700}
 label.file input{position:absolute;opacity:0;width:1px;height:1px}
 .photo-btn{position:relative;color:var(--ink);font-weight:500}
-.memo-photo{display:block;width:100%;max-width:100%;max-height:320px;object-fit:cover;border-radius:12px;border:1px solid var(--line);margin:4px 0 8px}
+.memo-photos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 8px}
+.memo-photos div{position:relative}
+.memo-photo{display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
+.memo-photos button{position:absolute;top:4px;right:4px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font:700 15px/28px sans-serif;padding:0;cursor:pointer}
 .preview{width:100%;max-width:100%;border-radius:14px;border:1px solid var(--line)}
 .preview+.preview{margin-top:10px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -261,7 +264,7 @@ let noteTimer=null;
 function trackNote(id,delay){
   clearTimeout(noteTimer);
   noteTimer=setTimeout(()=>{const s=shops().all.find(x=>x.id===id), st=S.progress.stamps[id];if(!s||!st)return;
-    track("note",s,false,{rating:st.rating||0,bean:st.bean||"",roast:st.roast||"",tastes:(st.tastes||[]).join("・"),memo:st.memo||"",photo:st.photo?1:0})},delay||0);
+    track("note",s,false,{rating:st.rating||0,bean:st.bean||"",roast:st.roast||"",tastes:(st.tastes||[]).join("・"),memo:st.memo||"",photo:photosOf(st).length})},delay||0);
 }
 // Which image a button made or saved, as shown in the organizer's sheet
 const IMG_LABEL=["","台紙1枚目","台紙2枚目","飲み比べ達成認定証","全店制覇認定証"];
@@ -654,9 +657,9 @@ function renderSheet(){
       <div class="field"><span>焙煎</span><div class="chips">${ROASTS.map(r=>`<button type="button" class="chip ${draft.roast===r?"on":""}" data-roast="${r}">${r}</button>`).join("")}</div></div>
       <div class="field"><span>味の特徴（いくつでも）</span><div class="chips">${TASTES.map(x=>`<button type="button" class="chip ${draft.tastes.includes(x)?"on":""}" data-taste="${x}">${x}</button>`).join("")}</div></div>
       <label class="field"><span>感想</span><textarea id="memo" maxlength="80" placeholder="例：酸味が爽やか。また飲みたい">${esc(st.memo||"")}</textarea></label>
-      <div class="field"><span>写真（お店・コーヒー・商品など）</span>
-        ${st.photo?`<img class="memo-photo" src="${st.photo}" alt="${esc(s.shop)}の写真">`:""}
-        <div class="row"><label class="btn ghost file photo-btn">写真を撮る<input id="n-photo-cam" type="file" accept="image/*" capture="environment"></label><label class="btn ghost file photo-btn">アルバムから選ぶ<input id="n-photo" type="file" accept="image/*"></label>${st.photo?`<button class="btn ghost" id="del-photo">写真を消す</button>`:""}<span class="msg" id="photo-msg"></span></div></div>
+      <div class="field"><span>写真（お店・コーヒー・商品など）${PHOTO_MAX}枚まで</span>
+        ${(()=>{const ps=photosOf(st);return `${ps.length?`<div class="memo-photos">${ps.map((u,i)=>`<div><img class="memo-photo" src="${u}" alt="${esc(s.shop)}の写真${i+1}"><button type="button" data-delphoto="${i}" aria-label="写真${i+1}を消す">×</button></div>`).join("")}</div>`:""}
+        <div class="row">${ps.length<PHOTO_MAX?`<label class="btn ghost file photo-btn">写真を撮る<input id="n-photo-cam" type="file" accept="image/*" capture="environment"></label><label class="btn ghost file photo-btn">アルバムから選ぶ<input id="n-photo" type="file" accept="image/*" multiple></label>`:`<span class="msg">${PHOTO_MAX}枚入っています。入れ替えるときは×で消してください。</span>`}<span class="msg" id="photo-msg"></span></div>`})()}</div>
       <div class="row"><button class="btn" id="save-memo">メモを保存</button><span class="msg" id="memo-msg"></span></div>`:`
       <p class="note">お店に置いてあるQRコードをスマホのカメラで読み取ると、このマスにお店のロゴのスタンプが載ります。</p>`}
     <div class="row"><button class="btn ghost" id="close">台紙に戻る</button>${st?`<button class="btn ghost" id="unstamp">このスタンプを取り消す</button>`:""}</div>
@@ -685,7 +688,7 @@ $("#view-play").addEventListener("click",async e=>{
   // Two taps so a stray tap doesn't wipe a stamp and its notes
   if(t.id==="unstamp"){
     if(!t.dataset.sure){t.dataset.sure="1";t.textContent="もう一度押すと取り消します（メモも消えます）";return}
-    track("undo",shops().all.find(x=>x.id===openId));delete S.progress.stamps[openId];await saveProgress();
+    track("undo",shops().all.find(x=>x.id===openId));photoDropAll(S.progress.stamps[openId]);delete S.progress.stamps[openId];await saveProgress();
     if(arrive?.id===openId)arrive=null;openId=null;renderArrive();renderPlay();renderSheet();return}
   if(t.id==="arrive-close"){arrive=null;renderArrive();return}
   if(t.id==="arrive-memo"){openId=arrive.id;arrive=null;renderArrive();renderSheet();$("#play-sheet").scrollIntoView({behavior:"smooth",block:"start"});return}
@@ -697,7 +700,7 @@ $("#view-play").addEventListener("click",async e=>{
   if(t.id==="make-img1"||t.id==="make-img2"){await makeImage(+t.id.slice(-1));return}
   if(t.id==="make-img3"||t.id==="make-img4"){const n=+t.id.slice(-1);S.progress.certName=$("#cert-name"+n).value.trim().slice(0,16);await saveProgress();await makeCert(n);return}
   if(/^save-img[1-4]$/.test(t.id)){await saveImage(+t.id.slice(-1));return}
-  if(t.id==="del-photo"){delete S.progress.stamps[openId].photo;await saveProgress();trackNote(openId);renderSheet();return}
+  if(t.dataset.delphoto){await photoRemove(S.progress.stamps[openId],+t.dataset.delphoto);await saveProgress();trackNote(openId);renderSheet();return}
 });
 
 // The town is required, so typing it is what enables saving
@@ -705,7 +708,7 @@ $("#view-play").addEventListener("input",e=>{
   if(e.target.id!=="prof-city")return;profDraft=profDraft||{...(S.progress.profile||{})};profDraft.city=e.target.value;
   const d=profDraft, b=$("#prof-save"), ok=!!(d.age&&d.sex&&d.pref&&d.city.trim()&&withList(d.with).length);if(b)b.disabled=!ok;$(".avatar-pre")?.classList.toggle("ghost",!ok);
 });
-// A photo for a shop's notes: shrunk on the phone so a dozen fit in browser storage
+// Photos for a shop's notes: shrunk on the phone, up to PHOTO_MAX per shop
 $("#view-play").addEventListener("change",async e=>{
   if(e.target.classList.contains("fav-pick")){S.progress.fav=e.target.value;await saveProgress();
     const s=shops().all.find(x=>x.id===e.target.value);if(s)track("fav",s);
@@ -716,14 +719,19 @@ $("#view-play").addEventListener("change",async e=>{
     const c=$("#prof-city")?.value;if(c!=null)profDraft.city=c;renderProfile();return}
   if(!/^n-photo/.test(e.target.id)||!e.target.files?.[0]||!openId)return;
   const st=S.progress.stamps[openId], msg=$("#photo-msg");msg.textContent="読み込み中…";msg.className="msg";
-  try{
-    const img=await loadImg(URL.createObjectURL(e.target.files[0]));if(!img)throw 0;
-    const M=720, sc=Math.min(1,M/Math.max(img.width,img.height)), c=document.createElement("canvas");
-    c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext("2d").drawImage(img,0,0,c.width,c.height);
-    const old=st.photo;st.photo=c.toDataURL("image/jpeg",0.72);
-    if(!psave()){st.photo=old;msg.textContent="スマホの保存容量がいっぱいで入れられませんでした。ほかのお店の写真を消すと入ります。";msg.className="msg err";return}
-    await saveProgress();trackNote(openId);renderSheet();
-  }catch(err){msg.textContent="この写真は読み込めませんでした。";msg.className="msg err"}
+  const files=[...e.target.files].slice(0,Math.max(0,PHOTO_MAX-photosOf(st).length));let bad=0,full=false;
+  for(const f of files){
+    try{
+      const img=await loadImg(URL.createObjectURL(f));if(!img)throw 0;
+      const M=720, sc=Math.min(1,M/Math.max(img.width,img.height)), c=document.createElement("canvas");
+      c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+      if(!await photoAdd(openId,st,c.toDataURL("image/jpeg",0.72))){full=true;break}
+    }catch(err){bad++}
+  }
+  await saveProgress();trackNote(openId);renderSheet();
+  const m=$("#photo-msg");if(!m)return;
+  if(full){m.textContent="スマホの保存容量がいっぱいで入れられませんでした。ほかの写真を消すと入ります。";m.className="msg err"}
+  else if(bad){m.textContent="読み込めない写真がありました。";m.className="msg err"}
 });
 
 /* ---------- QR arrival: the shop's QR opens this page with #q-<code> ---------- */
@@ -869,9 +877,10 @@ async function drawNote(g,s,x,y,w,h,c,todo){
   if(todo){g.fillStyle=c.muted;g.font=`700 ${Math.round(R*.7)}px ${c.B}`;g.textAlign="center";g.fillText("？",cx,cy+R*.25)}
   if(img){g.clip();const sc=Math.max(2*R/img.width,2*R/img.height);g.drawImage(img,cx-img.width*sc/2,cy-img.height*sc/2,img.width*sc,img.height*sc)}
   g.restore();g.strokeStyle=c.line;g.lineWidth=2;g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);g.stroke();
-  // The participant's photo, if any, sits in the top-right corner
-  const ph=st.photo?await loadImg(st.photo):null, PS=small?56:108;
-  if(ph){const px=x+w-P-PS, py=y+P;g.save();roundRect(g,px,py,PS,PS,12);g.clip();const sc=Math.max(PS/ph.width,PS/ph.height);g.drawImage(ph,px+PS/2-ph.width*sc/2,py+PS/2-ph.height*sc/2,ph.width*sc,ph.height*sc);g.restore();g.strokeStyle=c.line;g.lineWidth=2;roundRect(g,px,py,PS,PS,12);g.stroke()}
+  // The participant's photos sit down the right edge: one in the corner, two or three in a column
+  const phs=(await Promise.all(photosOf(st).map(loadImg))).filter(Boolean), n=phs.length, ph=n>0;
+  const PS=n<2?(small?56:108):Math.floor(Math.min(small?64:96,(h-2*P-(n-1)*8)/n));
+  phs.forEach((im,i)=>{const px=x+w-P-PS, py=y+P+i*(PS+8);g.save();roundRect(g,px,py,PS,PS,12);g.clip();const sc=Math.max(PS/im.width,PS/im.height);g.drawImage(im,px+PS/2-im.width*sc/2,py+PS/2-im.height*sc/2,im.width*sc,im.height*sc);g.restore();g.strokeStyle=c.line;g.lineWidth=2;roundRect(g,px,py,PS,PS,12);g.stroke()});
   const tx=cx+R+18, tw=x+w-P-tx-(ph?PS+12:0);
   g.textAlign="left";
   g.fillStyle=todo?c.muted:c.roast;g.font=`700 28px ${c.B}`;fitText(g,s.shop.replace(/^見本：/,""),tx,y+P+28,tw);
@@ -879,7 +888,7 @@ async function drawNote(g,s,x,y,w,h,c,todo){
   g.fillStyle=c.stamp;g.font=`${small?(ph?17:20):24}px ${c.B}`;
   if(small)g.fillText(st.rating?stars(st.rating):"",tx+atW+(at?(ph?12:34):0),y+P+58);
   else g.fillText(st.rating?stars(st.rating):"",tx,y+P+90);
-  const lx=x+P, vx=x+P+62, vw=w-2*P-62;
+  const lx=x+P, vx=x+P+62, vw=w-2*P-62-(n>1?PS+12:0);
   const rows=[["豆",[st.bean,st.roast].filter(Boolean).join("・")],["味",(st.tastes||[]).join("・")]];
   let ly=y+P+2*R+(small?32:42);
   for(const [k,v] of rows){
@@ -1212,6 +1221,42 @@ $("#copy-link").addEventListener("click",async()=>{
   catch(e){$("#copy-msg").textContent=url}
 });
 
+/* ---------- memo photos ---------- */
+// Photos live in IndexedDB (far more room than localStorage); the progress only keeps their ids.
+// Without IndexedDB (some private modes) the picture itself goes into the progress as before.
+const PHOTO_MAX=3, PHOTO={};let idb=null;
+function idbOpen(){return new Promise(r=>{try{const q=indexedDB.open("coffee-rally",1);q.onupgradeneeded=()=>q.result.createObjectStore("photos");q.onsuccess=()=>r(q.result);q.onerror=q.onblocked=()=>r(null)}catch(e){r(null)}})}
+function idbDo(mode,fn){return new Promise(r=>{try{const tx=idb.transaction("photos",mode),q=fn(tx.objectStore("photos"));tx.oncomplete=()=>r(q&&"result" in q?q.result:true);tx.onerror=tx.onabort=()=>r(null)}catch(e){r(null)}})}
+function photosOf(st){return st?[...(st.photos||[]).map(p=>p.startsWith("data:")?p:PHOTO[p]),st.photo].filter(Boolean):[]}
+async function photoAdd(shopId,st,url){
+  const list=st.photos||(st.photos=[]);
+  if(idb){const id=`${shopId}-${Date.now().toString(36)}${Math.random().toString(36).slice(2,5)}`;
+    if(await idbDo("readwrite",o=>o.put(url,id))){PHOTO[id]=url;list.push(id);return true}}
+  list.push(url);if(psave())return true;list.pop();return false;
+}
+async function photoRemove(st,i){
+  const ids=st.photos||[];
+  if(i<ids.length){const [id]=ids.splice(i,1);if(!id.startsWith("data:")){delete PHOTO[id];if(idb)await idbDo("readwrite",o=>o.delete(id))}}
+  else delete st.photo;
+}
+function photoDropAll(st){for(const id of st?.photos||[])if(!id.startsWith("data:")){delete PHOTO[id];if(idb)idbDo("readwrite",o=>o.delete(id))}}
+async function photosInit(){
+  idb=await idbOpen();if(!idb)return;
+  const keys=await idbDo("readonly",o=>o.getAllKeys())||[], vals=await idbDo("readonly",o=>o.getAll())||[];
+  keys.forEach((k,i)=>PHOTO[k]=vals[i]);
+  // Pictures saved inside the progress (the one-photo version, or a no-IndexedDB moment) move out
+  let moved=false;
+  for(const [sid,st] of Object.entries(S.progress.stamps||{})){
+    // Ids whose picture is gone (storage cleared) would hold a slot nobody can see or remove
+    const live=(st.photos||[]).filter(p=>p.startsWith("data:")||PHOTO[p]);if(st.photos&&live.length!==st.photos.length){st.photos=live;moved=true}
+    const inline=[st.photo,...(st.photos||[]).filter(p=>p.startsWith("data:"))].filter(Boolean);if(!inline.length)continue;
+    const keep=(st.photos||[]).filter(p=>!p.startsWith("data:"));delete st.photo;st.photos=keep;
+    for(const u of inline.slice(0,PHOTO_MAX-keep.length))await photoAdd(sid,st,u);
+    moved=true;
+  }
+  if(moved)await saveProgress();
+}
+
 /* ---------- open in the phone's own browser ---------- */
 // The progress lives in the browser's storage, so a QR reader's in-app view (iPhone コードスキャナー, LINE, Instagram...)
 // would keep stamps apart from Safari/Chrome. LINE honours openExternalBrowser=1; iOS 17+ honours x-safari-https://.
@@ -1248,6 +1293,7 @@ if(location.hash!=="#admin"){trackOpen();pageShown();
   window.addEventListener("pagehide",pageHidden)}
 flush();
 show("play");
+photosInit().then(()=>{renderSheet()});
 (async()=>{
   const [dbNs,user,dl]=await Promise.all(["db","user","downloads"].map(n=>(window.claude?.use?window.claude.use(n):Promise.resolve(null)).catch(()=>null)));
   window.__dl=dl||{save:async({filename,data})=>{const a=document.createElement("a");a.href=URL.createObjectURL(data);a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);return{status:"saved"}}};
