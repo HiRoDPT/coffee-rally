@@ -98,6 +98,13 @@ dl.spec{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;margi
 dl.spec dt{color:var(--muted);font-size:12px;font-weight:700;padding-top:2px}
 dl.spec dd{margin:0}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sug{display:flex;flex-direction:column;gap:8px}
+.sug-card{display:flex;gap:12px;align-items:center;text-align:left;font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:10px 12px;cursor:pointer}
+.sug-card img{width:48px;height:48px;border-radius:50%;object-fit:cover;flex:none;background:#fff;border:1px solid var(--line)}
+.sug-card b{display:block;font-size:14px;color:var(--roast)}.sug-card small{display:block;font-size:12px;color:var(--muted);line-height:1.6}
+.sug-card.on{border:2px solid var(--leaf)}
+#play-about summary{cursor:pointer;font-weight:700;font-size:14px;color:var(--muted)}
+#play-about details[open]{display:flex;flex-direction:column;gap:12px}
 .row>input{flex:1 1 160px;min-width:0}
 .field{display:flex;flex-direction:column;gap:4px}
 .field>span{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.04em}
@@ -235,7 +242,7 @@ function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 function anonId(){let id=lsGet(AKEY,"");if(!id){id=Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-6);lsSet(AKEY,id)}return id}
 // once=true records the event a single time per phone (goal5, complete); a string once is its own key (open once a day, a memo's first view)
 function track(type,s,once,extra){
-  if(!TRACK_URL)return;
+  if(!TRACK_URL||lsGet("coffee-rally-notrack",0))return;
   const sent=lsGet(FKEY,{}), key=typeof once==="string"?once:type;if(once&&sent[key])return;
   if(once){sent[key]=1;lsSet(FKEY,sent)}
   // A newer note / time / profile replaces the one still waiting to be sent
@@ -639,7 +646,7 @@ function renderPlay(){
     <button class="btn wide leaf" id="make-img2">2枚目を画像にする</button>
     <p class="msg" id="img-msg2">台紙、1〜5店舗目のメモ、6店舗目からのメモの3枚になります。</p>
     <div id="img-box2"></div>`:"";
-  justGot=null;renderSaveNote();
+  justGot=null;renderSaveNote();renderGuess();
 }
 function renderSheet(){
   const box=$("#play-sheet");
@@ -667,8 +674,8 @@ function renderSheet(){
     ${st?`<p class="msg" style="font-size:12px">間違えて読んだときは取り消すと、台紙の枠が空きます。</p>`:""}`;
 }
 function viewPlay(){
-  $("#view-play").innerHTML=`<div class="panel arrive" id="play-arrive" hidden></div><div class="panel" id="play-profile" hidden></div><div class="panel" id="play-card"></div><div class="panel" id="play-card2" hidden></div><div class="panel sheet" id="play-sheet" hidden></div>`;
-  renderArrive();renderProfile();renderPlay();renderSheet();
+  $("#view-play").innerHTML=`<div class="panel arrive" id="play-arrive" hidden></div><div class="panel" id="play-guess" hidden></div><div class="panel" id="play-profile" hidden></div><div class="panel" id="play-card"></div><div class="panel" id="play-card2" hidden></div><div class="panel sheet" id="play-sheet" hidden></div><div class="panel" id="play-about"></div>`;
+  renderArrive();renderProfile();renderPlay();renderSheet();renderAbout();
 }
 $("#view-play").addEventListener("click",async e=>{
   const t=e.target;
@@ -742,6 +749,216 @@ $("#view-play").addEventListener("change",async e=>{
   else if(bad){m.textContent="読み込めない写真がありました。";m.className="msg err"}
 });
 
+/* ---------- 楽しみ方の推測: runs only for visitors who turn it on ---------- */
+// The secondary instincts this trial looks for, with the 建前 shown to the visitor. v0 hypotheses, fixed before the event
+const INST={
+  win:{name:"勝利の実感",type:"やり切る人",line:"ゴールが見えると、最後まで行きたくなるタイプ"},
+  variety:{name:"多様の確保",type:"くらべて楽しむ人",line:"いろいろ並べて、違いを味わうのが好きなタイプ"},
+  cause:{name:"因果の探求",type:"味のわけを知りたい人",line:"おいしい理由まで知ると、もっと楽しくなるタイプ"},
+  symbol:{name:"象徴の確保",type:"思い出を形に残す人",line:"楽しかった日を、写真や画像で手元に残したいタイプ"},
+  sense:{name:"感覚の報酬",type:"「これだ」を見つける人",line:"たくさんより、心から好きな一杯に出会いたいタイプ"},
+  share:{name:"分配の欲求",type:"誰かと分け合う人",line:"おいしいものは、一緒にいる人と分け合いたいタイプ"},
+  crowd:{name:"周知の探索",type:"みんなの「好き」も確かめたい人",line:"評判のお店は、自分の舌でも確かめてみたいタイプ"},
+  rare:{name:"希少の獲得",type:"自分の舌で見つける人",line:"まだ知られていない一杯を、自分で見つけたいタイプ"},
+  easy:{name:"単純の欲求",type:"ゆったり味わう人",line:"並んだり急いだりせず、気持ちよく過ごしたいタイプ"},
+  deep:{name:"没頭の体験",type:"じっくり浸る人",line:"自分のペースで、コーヒーの時間に浸りたいタイプ"}
+};
+// Facts about each shop for the suggestion cards, filled in from what the shops tell the organizer. A blank field means that card is not offered
+// roast: 主な焙煎（浅煎り〜深煎り） / story: 店主に聞ける話 / rare: 今日だけ・限定のもの / share: 一緒に来た人と分けやすい工夫 / calm: ゆっくりできる点
+const SHOP_FACTS={
+  // KG:{roast:"",story:"",rare:"",share:"",calm:""},
+};
+const MOODS=["のんびりしたい","いろいろ試したい","お気に入りを見つけたい","記念に残したい"];
+const WHYS=["なんとなく","人に聞いた","SNSで見た","空いていた","前から気になっていた"];
+const GUESS_FROM=3;
+const NOTRACK="coffee-rally-notrack";
+const guessOn=()=>S.progress.guess==="on"&&!youngProfile();
+const youngProfile=()=>S.progress.profile?.age==="10代以下";
+function seeded(str){let h=2166136261;for(const c of str){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return ()=>{h^=h<<13;h^=h>>>17;h^=h<<5;return (h>>>0)/4294967296}}
+const shopName=s=>s.shop.replace(/^見本：/,"");
+
+// Stamp counts from the organizer's sheet, refreshed there every 5 minutes; kept here for 5 minutes too
+let POP=null, popAt=0, popLoading=false;
+async function loadPop(){
+  if(!TRACK_URL||popLoading||Date.now()-popAt<5*60000)return;
+  popLoading=true;
+  try{const r=await fetch(TRACK_URL+"?pop=1");const j=await r.json();if(j&&j.total)POP=j}catch(e){}
+  popAt=Date.now();popLoading=false;renderGuess();
+}
+
+// Adds up the signals for each instinct and keeps the reasons, so the visitor can see why
+function guessScores(){
+  const {list,all}=shops(), k=list.length, sc={}, why={};
+  const add=(key,n,text)=>{sc[key]=(sc[key]||0)+n;(why[key]=why[key]||[]).push(text)};
+  const sts=list.map(s=>S.progress.stamps[s.id]);
+  const ts=sts.map(st=>st.ts).filter(Boolean).sort((a,b)=>a-b);
+  if(ts.length>=3){const gap=Math.round((ts[ts.length-1]-ts[0])/(ts.length-1)/60000);
+    if(gap<12)add("win",1,`お店から次のお店まで、平均${gap}分のテンポで回っています`);
+    else if(gap>=25)add("easy",1,`1軒ごとに平均${gap}分、ゆっくり回っています`)}
+  if(k>GOAL){add("win",2,`${GOAL}店舗を超えて、全店制覇に向かっています`);add("variety",1,`${k}店舗を飲み比べています`)}
+  const told=sts.filter(st=>(st.memo||"").length>=15||(st.bean||"").trim()).length;
+  if(told>=2)add("cause",2,`${told}店で、豆の種類や感想を詳しく書いています`);
+  const chips=sts.reduce((a,st)=>a+(st.tastes||[]).length,0);
+  if(k&&chips/k>=2.5)add("variety",1,"味の特徴をたくさん選んでいます");
+  const ph=sts.filter(st=>photosOf(st).length).length;
+  if(ph>=2)add("symbol",2,`${ph}店で写真を残しています`);
+  if(S.progress.saved)add("symbol",1,"台紙や認定証を画像で保存しています");
+  const rated=list.filter(s=>S.progress.stamps[s.id].rating>0);
+  if(rated.length>=3){const top=rated.reduce((a,b)=>S.progress.stamps[b.id].rating>S.progress.stamps[a.id].rating?b:a);
+    const r=S.progress.stamps[top.id].rating, rest=rated.filter(s=>s!==top).map(s=>S.progress.stamps[s.id].rating), avg=rest.reduce((a,b)=>a+b,0)/rest.length;
+    if(r>=4&&r-avg>=1.5)add("sense",2,`${shopName(top)}だけ、好き度が飛び抜けています`)}
+  const w=withList(S.progress.profile?.with);
+  if(w.some(x=>x==="家族"||x==="子どもと"))add("share",2,"家族と来ています");
+  else if(w.some(x=>x==="夫婦・カップル"||x==="友だち"))add("share",1,"誰かと一緒に来ています");
+  if(w.includes("ひとり"))add("deep",2,"ひとりで来ています");
+  const whys=Object.values(S.progress.why||{}), cnt=v=>whys.filter(x=>x===v).length;
+  if(cnt("人に聞いた")+cnt("SNSで見た"))add("crowd",cnt("人に聞いた")+cnt("SNSで見た"),"人に聞いたりSNSで見たりしたお店を選んでいます");
+  if(cnt("空いていた"))add("easy",cnt("空いていた"),"空いているお店を選んでいます");
+  if(cnt("前から気になっていた"))add("rare",cnt("前から気になっていた"),"前から気になっていたお店を選んでいます");
+  const mood={"のんびりしたい":"easy","いろいろ試したい":"variety","お気に入りを見つけたい":"sense","記念に残したい":"symbol"}[S.progress.mood];
+  if(mood)add(mood,1,`最初に「${S.progress.mood}」を選びました`);
+  // Whether they went to the busiest shops or the quiet ones; the counts are today's totals, not at the time of each visit
+  if(POP&&k>=3){const rank=all.map(s=>s.code).sort((a,b)=>(POP.total[b]||0)-(POP.total[a]||0)), top4=rank.slice(0,4);
+    const inTop=list.filter(s=>top4.includes(s.code)).length/k;
+    if(inTop>=0.6)add("crowd",2,"人気の上位のお店から回っています");
+    else if(inTop<=0.2)add("rare",2,"まだ回った人が少ないお店を選んでいます")}
+  const order=Object.keys(INST), rnd=seeded(anonId()+"tie");
+  const tie=Object.fromEntries(order.map(x=>[x,rnd()]));
+  const ranked=order.filter(x=>sc[x]>0).sort((a,b)=>sc[b]-sc[a]||tie[a]-tie[b]);
+  return {sc,why,ranked};
+}
+
+// One card per instinct, built only from true facts; null when there is nothing honest to say
+function cardFor(key,used){
+  const {list,all}=shops(), k=list.length, open=all.filter(s=>!S.progress.stamps[s.id]&&!used.includes(s.code)), F=s=>SHOP_FACTS[s.code]||{};
+  const pick=(arr,tag)=>arr.length?arr[Math.floor(seeded(anonId()+key+k+tag)()*arr.length)]:null;
+  let s;
+  switch(key){
+    case "win":{s=pick(open,"w");if(!s)return null;const left=k<GOAL?GOAL-k:all.length-k;
+      return {s,title:k<GOAL?`あと${left}店舗で飲み比べ達成`:`あと${left}店舗で全店制覇`,body:`まだのお店のひとつ、${shopName(s)}でゴールに近づけます。`}}
+    case "variety":{const had=list.map(x=>S.progress.stamps[x.id].roast).filter(Boolean);s=pick(open.filter(x=>F(x).roast&&!had.includes(F(x).roast)),"v");if(!s)return null;
+      return {s,title:`まだ飲んでいない「${F(s).roast}」`,body:`${shopName(s)}は${F(s).roast}が中心です。いままでの杯とくらべてみてください。`}}
+    case "cause":{s=pick(open.filter(x=>F(x).story),"c");if(!s)return null;
+      return {s,title:"お店の人に話を聞けるお店",body:`${shopName(s)}：${F(s).story}`}}
+    case "symbol":{s=pick(open,"s");if(!s)return null;
+      return {s,title:"台紙にこのロゴを",body:`${shopName(s)}のロゴも台紙に並べてみませんか。台紙は画像にして残せます。`}}
+    case "sense":{const best=list.filter(x=>S.progress.stamps[x.id].rating>=4).sort((a,b)=>S.progress.stamps[b.id].rating-S.progress.stamps[a.id].rating)[0];
+      if(!best||used.includes(best.code))return null;s=best;
+      return {s,title:"いちばん好きだったお店でもう一杯",body:`好き度がいちばん高かった${shopName(s)}。ほかの豆もあるか聞いてみては。`}}
+    case "share":{s=pick(open.filter(x=>F(x).share),"h");if(!s)return null;
+      return {s,title:"一緒に来た人と分けやすいお店",body:`${shopName(s)}：${F(s).share}`}}
+    case "crowd":{if(!POP)return null;s=open.slice().sort((a,b)=>(POP.total[b.code]||0)-(POP.total[a.code]||0))[0];if(!s||!POP.total[s.code])return null;
+      return {s,title:"いまスタンプがいちばん集まっているお店",body:`まだ行っていないお店の中で、${shopName(s)}にいちばん多くの人が来ています。`}}
+    case "rare":{s=pick(open.filter(x=>F(x).rare),"r");if(s)return {s,title:"今日ならではの一杯",body:`${shopName(s)}：${F(s).rare}`};
+      if(!POP)return null;s=open.slice().sort((a,b)=>(POP.total[a.code]||0)-(POP.total[b.code]||0))[0];if(!s)return null;
+      return {s,title:"まだ回った人が少ないお店",body:`${shopName(s)}は、今日まだあまり人が回っていないお店です。`}}
+    case "easy":{if(!POP||!POP.recent)return null;s=open.slice().sort((a,b)=>(POP.recent[a.code]||0)-(POP.recent[b.code]||0))[0];if(!s)return null;
+      return {s,title:"いま比較的すいていそうなお店",body:`この30分ほど、${shopName(s)}のスタンプは少なめです。`}}
+    case "deep":{s=pick(open.filter(x=>F(x).calm),"d");if(!s)return null;
+      return {s,title:"ゆっくりできるお店",body:`${shopName(s)}：${F(s).calm}`}}
+  }
+  return null;
+}
+
+// A and B follow the guess, C is a random other instinct (the comparison); shuffled so the place gives nothing away
+function suggestions(){
+  const {ranked}=guessScores(), k=shops().list.length, used=[], arms=[];
+  for(const key of ranked){if(arms.length>=2)break;const c=cardFor(key,used);if(c){used.push(c.s.code);arms.push({arm:arms.length?"B":"A",key,...c})}}
+  if(!arms.length)return [];
+  const others=Object.keys(INST).filter(x=>!arms.some(a=>a.key===x)), rnd=seeded(anonId()+"ctl"+k);
+  for(const key of others.sort(()=>rnd()-0.5)){const c=cardFor(key,used);if(c){arms.push({arm:"C",key,...c});break}}
+  const r2=seeded(anonId()+"ord"+k);
+  return arms.map(a=>[r2(),a]).sort((x,y)=>x[0]-y[0]).map(x=>x[1]);
+}
+
+function renderGuess(){
+  const box=$("#play-guess");if(!box)return;
+  const {list,all}=shops(), k=list.length, g=S.progress.guess;
+  let html="";
+  if(!g&&k>=2&&!youngProfile()){
+    html=`<div class="eyebrow">オプション</div><h3>あなたの楽しみ方を推測してみませんか？</h3>
+      <p class="msg">回ったお店の順番やメモの付け方から、あなたに合いそうな次のお店をおすすめし、${GOAL}店舗そろったら「楽しみ方タイプ」をお見せします。推測はこのスマホの中で行います。集計に送るのは、推測の結果、おすすめを押したか、答えてくれた気分・きっかけ・答え合わせだけです。いつでもオフにでき、記録も消せます。</p>
+      <div class="row"><button class="btn" data-guess="on">推測をオンにする</button><button class="btn ghost" data-guess="off">今はしない</button></div>`;
+  }else if(guessOn()){
+    if(!S.progress.mood&&k<GOAL)html+=`<div class="field"><span>いまの気分は？（答えなくても大丈夫です）</span><div class="chips">${MOODS.map(m=>`<button type="button" class="chip" data-mood="${m}">${m}</button>`).join("")}</div></div>`;
+    if(k>=GOAL)html+=checkHTML();
+    if(k>=GUESS_FROM&&k<all.length){
+      // The cards for this stamp count are fixed once made, so what was logged is what was shown
+      const set=(S.progress.sugSet||{})[k];
+      if(!set&&TRACK_URL&&!popAt){loadPop();html+=`<p class="msg">おすすめを準備しています…</p>`}
+      else{
+        let arms=set;
+        if(!arms){arms=suggestions().map(a=>({arm:a.arm,key:a.key,code:a.s.code,title:a.title,body:a.body}));
+          S.progress.sugSet={...(S.progress.sugSet||{}),[k]:arms};saveProgress();
+          if(arms.length)track("suggest",null,"sug-"+k,{what:arms.map(a=>`${a.arm}:${a.key}:${a.code}`).join("|")})}
+        const tapped=(S.progress.sugTap||{})[k], byCode=c=>all.find(s=>s.code===c);
+        if(arms.length)html+=`<div class="eyebrow">あなたへのおすすめ</div><h3>次はこんなお店はどうですか</h3>
+          <div class="sug">${arms.map(a=>`<button type="button" class="sug-card ${tapped===a.arm?"on":""}" data-sug="${a.arm}" data-key="${a.key}" data-code="${a.code}"><img src="${byCode(a.code)?logoOf(byCode(a.code)):""}" alt=""><span><b>${esc(a.title)}</b><small>${esc(a.body)}</small></span></button>`).join("")}</div>
+          <p class="msg" style="font-size:12px">${tapped?"いいですね。お店でQRを読むとスタンプが載ります。":"気になったものを押してみてください（押さなくても大丈夫です）。"}</p>`;
+        else if(k<GOAL)html+=`<p class="msg">${k}店舗目まで来ました。もう少し回ると、おすすめが出せるようになります。</p>`;
+      }
+    }else if(k<GUESS_FROM)html+=`<p class="msg">推測はオンです。${GUESS_FROM}店舗回ると、あなたに合いそうなお店をおすすめします。</p>`;
+  }
+  box.hidden=!html;box.innerHTML=html;
+}
+
+// The answer check at GOAL shops: the guess, its reasons, and the visitor's own verdict
+function checkHTML(){
+  const {ranked,why}=guessScores();
+  const c=S.progress.check||(ranked[0]?{key:ranked[0]}:null);
+  if(!c)return `<p class="msg">今日の回り方からは、まだタイプを決めきれませんでした。メモや写真を残すと、推測できるようになります。</p>`;
+  if(!S.progress.check){S.progress.check=c;saveProgress()}
+  const t=INST[c.key], reasons=(why[c.key]||[]).slice(0,3);
+  let html=`<div class="eyebrow">今日のあなたのコーヒーの楽しみ方</div><h3>${esc(t.type)}</h3><p class="msg">${esc(t.line)}。</p>
+    ${reasons.length?`<p class="msg" style="font-size:13px">そう思った理由：${reasons.map(esc).join("。")}。</p>`:""}`;
+  if(!c.ans)html+=`<div class="field"><span>当たっていますか？</span><div class="chips">${[["hit","当たってる"],["kind","言われてみればそう"],["miss","ちょっと違う"]].map(([v,l])=>`<button type="button" class="chip" data-check="${v}">${l}</button>`).join("")}</div></div>`;
+  else if(c.ans==="miss"&&!c.alt){
+    const rnd=seeded(anonId()+"alt"), pool=Object.keys(INST).filter(x=>x!==c.key&&x!==ranked[1]).sort(()=>rnd()-0.5);
+    const alts=[ranked[1],...pool].filter(Boolean).slice(0,3);
+    html+=`<div class="field"><span>本当はどれに近いですか？</span><div class="chips">${alts.map(x=>`<button type="button" class="chip" data-alt="${x}">${esc(INST[x].type)}</button>`).join("")}<button type="button" class="chip" data-alt="none">どれでもない</button></div></div>`;
+  }else html+=`<p class="msg ok">答えてくれてありがとうございます。${c.ans==="miss"?"外れた答えも、次の推測をよくするのに使わせてもらいます。":"次のイベントでも、もっと当たるようにしていきます。"}</p>`;
+  return html;
+}
+const ANS={hit:"当たってる",kind:"言われてみればそう",miss:"ちょっと違う"};
+function sendCheck(){const c=S.progress.check;track("check",null,false,{what:`${INST[c.key].name}・${ANS[c.ans]}${c.alt?"・"+(c.alt==="none"?"どれでもない":INST[c.alt].name):""}`})}
+
+$("#view-play").addEventListener("click",async e=>{
+  const t=e.target.closest("[data-guess],[data-mood],[data-sug],[data-check],[data-alt],[data-why],#about-guess,#about-send,#about-erase");if(!t)return;
+  if(t.dataset.guess){S.progress.guess=t.dataset.guess;await saveProgress();track("guess",null,false,{what:t.dataset.guess==="on"?"オン":"オフ"});renderGuess();renderAbout();return}
+  if(t.dataset.mood){S.progress.mood=t.dataset.mood;await saveProgress();track("mood",null,false,{what:t.dataset.mood});renderGuess();return}
+  if(t.dataset.sug){const k=shops().list.length;S.progress.sugTap={...(S.progress.sugTap||{}),[k]:t.dataset.sug};await saveProgress();
+    track("stap",shops().all.find(s=>s.code===t.dataset.code),`stap-${k}-${t.dataset.sug}`,{what:`${t.dataset.sug}:${t.dataset.key}`});renderGuess();return}
+  if(t.dataset.check){S.progress.check.ans=t.dataset.check;await saveProgress();if(t.dataset.check!=="miss")sendCheck();renderGuess();return}
+  if(t.dataset.alt){S.progress.check.alt=t.dataset.alt;await saveProgress();sendCheck();renderGuess();return}
+  if(t.dataset.why){const id=t.dataset.id;S.progress.why={...(S.progress.why||{}),[id]:t.dataset.why};await saveProgress();
+    track("why",shops().all.find(s=>s.id===id),false,{what:t.dataset.why});renderArrive();return}
+  if(t.id==="about-guess"){S.progress.guess=guessOn()?"off":"on";await saveProgress();track("guess",null,false,{what:S.progress.guess==="on"?"オン":"オフ"});renderGuess();renderAbout();return}
+  if(t.id==="about-send"){if(lsGet(NOTRACK,0)){lsSet(NOTRACK,0);trackOpen()}else{lsSet(NOTRACK,1);lsSet(QKEY,[])}renderAbout();return}
+  if(t.id==="about-erase"){
+    if(!t.dataset.sure){t.dataset.sure="1";t.textContent="もう一度押すと、スタンプ・メモ・写真をすべて消します";return}
+    // The sheet drops this phone's rows once it gets this; sent even when sending was turned off
+    if(TRACK_URL)try{await fetch(TRACK_URL,{method:"POST",mode:"no-cors",keepalive:true,headers:{"Content-Type":"text/plain"},body:JSON.stringify({events:[{id:anonId(),type:"erase",t:Date.now()}]})})}catch(err){}
+    [LKEY,PKEY,AKEY,QKEY,FKEY,TKEY,NOTRACK].forEach(k=>{try{localStorage.removeItem(k)}catch(err){}});
+    try{idb&&idb.close();indexedDB.deleteDatabase("coffee-rally")}catch(err){}
+    location.replace(location.pathname);return}
+});
+
+// What is sent, where, and why (電気通信事業法の外部送信規律に沿った公表), plus the visitor's own switches
+function renderAbout(){
+  const box=$("#play-about");if(!box)return;
+  const off=!!lsGet(NOTRACK,0);
+  box.innerHTML=`<details><summary>このスタンプラリーの集計について</summary>
+    <p class="msg">お店の来店を、匿名で集計しています。お名前や連絡先はいただきません。認定証のお名前と写真は、このスマホの中だけに残ります。</p>
+    <dl class="spec"><dt>送る情報</dt><dd>スマホごとの匿名の番号、開いた日時・来た経路・端末の種類、スタンプと取り消し、メモ（好き度・豆・焙煎・味・感想・写真の有無）、画像を作った・保存した、見ていた時間、QRが読めなかった理由、アバターの項目、印象に残ったお店。推測をオンにした方は、気分・お店を選んだきっかけ・おすすめを押したか・推測の答え合わせ。</dd>
+      <dt>送り先</dt><dd>主催者のGoogleスプレッドシート（Google Apps Script）</dd>
+      <dt>目的</dt><dd>来店の集計と、次回からのイベントづくり</dd>
+      <dt>あなたの番号</dt><dd>No.${anonId().slice(-6).toUpperCase()}（送った記録を消したいときは、下のボタンか、主催者にこの番号を伝えてください）</dd></dl>
+    <div class="row">${youngProfile()?"":`<button class="btn ghost" id="about-guess">${guessOn()?"推測をオフにする":"推測をオンにする"}</button>`}
+      <button class="btn ghost" id="about-send">${off?"集計への送信を再開する":"集計への送信をやめる"}</button></div>
+    ${off?`<p class="msg">いまは集計に何も送っていません。スタンプやメモはこのスマホに残ります。</p>`:""}
+    <button class="btn ghost" id="about-erase">このスマホの記録をすべて消す</button></details>`;
+}
+
 /* ---------- QR arrival: the shop's QR opens this page with #q-<code> ---------- */
 let arrive=null, pendingCode=null, loaded={cfg:false,vendors:false,progress:false};
 function parseHash(){const m=(location.hash||"").match(/^#q-([A-Za-z0-9]+)(?:-([0-9a-fA-F]+))?$/);return m?{code:m[1].toUpperCase(),name:m[2]?unhexName(m[2]).slice(0,30):""}:null}
@@ -754,7 +971,7 @@ function tryArrive(){
   if(!s){arrive={error:true}}
   else{
     const again=!!S.progress.stamps[s.id];
-    if(!again){S.progress.stamps[s.id]={at:nowLabel(),rating:0,memo:""};justGot=s.id;saveProgress();track("stamp",s);trackMilestones()}
+    if(!again){S.progress.stamps[s.id]={at:nowLabel(),ts:Date.now(),rating:0,memo:""};justGot=s.id;saveProgress();track("stamp",s);trackMilestones()}
     arrive={id:s.id,again};openId=s.id;
   }
   show("play");$("#play-arrive")?.scrollIntoView({block:"start"});
@@ -770,6 +987,7 @@ function renderArrive(){
     <h3>${esc(s.shop.replace(/^見本：/,""))}</h3>
     <p class="msg">${arrive.again?"このお店のスタンプはもう台紙に載っています。":"ロゴのスタンプを台紙に載せました。"}</p>
     <p class="msg ok">${(()=>{const {list,all}=shops();const k=list.length,t=all.length;return k>=t?`全${t}店舗制覇！`:k===GOAL&&!arrive.again?`${GOAL}店舗 飲み比べ達成！${t>GOAL?"2枚目の「全店制覇」台紙が開きました。":""}`:`${k} / ${t} 店舗`})()}</p>
+    ${guessOn()&&!arrive.again?`<div class="field"><span>このお店を選んだきっかけは？（答えなくても大丈夫です）</span><div class="chips">${WHYS.map(w=>`<button type="button" class="chip ${(S.progress.why||{})[s.id]===w?"on":""}" data-why="${w}" data-id="${s.id}">${w}</button>`).join("")}</div></div>`:""}
     <button class="btn wide" id="arrive-memo">このお店のメモを書く</button>
     <p class="msg" style="font-size:12px">好き度・豆・感想・写真を残せます。あとで書くときは、台紙のこのお店のロゴを押してください。</p>
     <button class="btn ghost" id="arrive-close">台紙を見る</button>`;
@@ -1029,17 +1247,18 @@ async function certBack(all,B,full){
 // Android's share sheet often has no "save to device", so Android downloads instead (it shows up in the gallery's Download album)
 const IS_ANDROID=/Android/i.test(navigator.userAgent);
 function canSharePhoto(){if(IS_ANDROID)return false;try{return !!(navigator.canShare&&navigator.canShare({files:[new File([new Blob(["x"],{type:"image/png"})],"x.png",{type:"image/png"})]}))}catch(e){return false}}
+function savedOne(which){S.progress.saved=(S.progress.saved||0)+1;saveProgress();track("save",null,false,{what:IMG_LABEL[which]})}
 async function saveImage(which){
   const items=lastBlobs[which];if(!items||!items.length)return;
   const m=$("#img-msg"+which), files=items.map(o=>new File([o.blob],o.name,{type:"image/png"}));
   if(canSharePhoto()){
     try{await navigator.share({files});
-      m.textContent="保存できました。写真アプリを見てみてください。";m.className="msg ok";track("save",null,false,{what:IMG_LABEL[which]});return}
+      m.textContent="保存できました。写真アプリを見てみてください。";m.className="msg ok";savedOne(which);return}
     catch(e){if(e&&e.name==="AbortError"){m.textContent="保存を取りやめました。もう一度押すとやり直せます。";m.className="msg";return}}
   }
   if(!window.__dl){m.textContent="画像を長押しして「写真に追加」を選んでください。";m.className="msg err";return}
   try{for(const o of items)await window.__dl.save({filename:o.name,data:o.blob});
-    m.textContent=IS_ANDROID?"保存しました。ギャラリー（フォト）の「Download」に入っています。":"保存しました。";m.className="msg ok";track("save",null,false,{what:IMG_LABEL[which]})}
+    m.textContent=IS_ANDROID?"保存しました。ギャラリー（フォト）の「Download」に入っています。":"保存しました。";m.className="msg ok";savedOne(which)}
   catch(e){m.textContent=e&&e.code==="declined"?"保存を取りやめました。":"保存できませんでした。画像を長押しして「写真に追加」を選んでください。";m.className="msg err"}
 }
 function saveHTML(n,label){return `${canSharePhoto()||window.__dl?`<button class="btn wide" id="save-img${n}">${label}を写真に保存する</button>`:""}
